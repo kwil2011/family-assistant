@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Family AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            color: #333;
+        }
+        .logout-button {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+        }
+        .welcome-section {
+            margin-bottom: 30px;
+        }
+        .welcome-text {
+            color: #666;
+            margin: 10px 0;
+        }
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        .chat-icon {
+            background-color: #4285f4;
+        }
+        .personalization-icon {
+            background-color: #34a853;
+        }
+        .account-icon {
+            background-color: #a142f4;
+        }
+        .card-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+        .card h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .card p {
+            margin: 0;
+            color: #666;
+        }
+        .account-info {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .account-info h2 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+        .info-row {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .info-label {
+            width: 120px;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+        .api-key {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Family AI Assistant</h1>
+        <button class="logout-button" id="logoutButton">Log out</button>
+    </div>
+
+    <div class="welcome-section">
+        <h2>Welcome, <span id="userName">User</span>!</h2>
+        <p class="welcome-text">Your personal AI assistant is ready to help.</p>
+    </div>
+
+    <div class="cards-container">
+        <div class="card" id="chatCard">
+            <div class="card-icon chat-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                </svg>
+            </div>
+            <h2>Chat with AI</h2>
+            <p>Start a conversation with your personalized AI assistant.</p>
+        </div>
+
+        <div class="card" id="personalizationCard">
+            <div class="card-icon personalization-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98 0 .33.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
+                </svg>
+            </div>
+            <h2>Personalisation</h2>
+            <p>Customise your AI assistant to match your preferences.</p>
+        </div>
+
+        <div class="card" id="accountCard">
+            <div class="card-icon account-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                </svg>
+            </div>
+            <h2>Account Info</h2>
+            <p>View and manage your account information and API key.</p>
+        </div>
+    </div>
+
+    <!--
+    <div class="account-info">
+        <h2>Account Information</h2>
+        <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value" id="userNameInfo">User</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Email:</div>
+            <div class="info-value" id="userEmail">user@example.com</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">API Key:</div>
+            <div class="info-value api-key" id="apiKey">••••••••••</div>
+        </div>
+    </div>
+    -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Get user data
+            const userData = await window.electronAPI.storeGet('userData');
+            if (!userData || !userData.email) {
+                // If not logged in, redirect to index.html
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Update user information
+            document.getElementById('userName').textContent = userData.name || 'User';
+            const userNameInfoElem = document.getElementById('userNameInfo');
+            if (userNameInfoElem) userNameInfoElem.textContent = userData.name || 'User';
+            const userEmailElem = document.getElementById('userEmail');
+            if (userEmailElem) userEmailElem.textContent = userData.email;
+            const apiKeyElem = document.getElementById('apiKey');
+            if (apiKeyElem) apiKeyElem.textContent = '•'.repeat(10);
+
+            // Add event listeners for cards
+            document.getElementById('chatCard').addEventListener('click', async () => {
+                // Check if user is still logged in before navigating
+                const userData = await window.electronAPI.storeGet('userData');
+                console.log('Chat card clicked - User data:', userData);
+                
+                if (!userData || !userData.email) {
+                    console.log('No user data found, redirecting to index');
+                    // If not logged in, set the logout flag and redirect to index
+                    await window.electronAPI.storeSet('isLoggingOut', true);
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                // Navigate to chat page
+                window.location.href = 'chat.html';
+            });
+
+            document.getElementById('personalizationCard').addEventListener('click', () => {
+                window.location.href = 'personalization.html';
+            });
+
+            document.getElementById('accountCard').addEventListener('click', () => {
+                window.location.href = 'account.html';
+            });
+
+            // Add logout functionality
+            document.getElementById('logoutButton').addEventListener('click', async () => {
+                await window.electronAPI.storeSet('isLoggingOut', true);
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html> 

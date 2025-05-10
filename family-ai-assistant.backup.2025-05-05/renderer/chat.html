@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Family AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .back-button {
+            padding: 8px 16px;
+            background-color: transparent;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+        }
+        .back-button:hover {
+            background-color: #f5f5f5;
+        }
+        .chat-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .action-button {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+        }
+        .action-button:hover {
+            background-color: #ddd !important;
+        }
+        .action-button:active {
+            background-color: #ccc !important;
+        }
+        .chat-container {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user {
+            background-color: #e3f2fd;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .assistant {
+            background-color: #f5f5f5;
+            align-self: flex-start;
+        }
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        .message-time {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            text-align: right;
+        }
+        .message.user .message-time {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .input-container {
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+        }
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .voice-control {
+            padding: 12px;
+            background-color: #f5f5f5;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            min-width: 48px;
+        }
+        .voice-control:hover {
+            background-color: #e0e0e0;
+        }
+        .voice-control.recording {
+            background-color: #ff4444;
+            color: white;
+            border-color: #ff4444;
+            animation: pulse 1.5s infinite;
+        }
+        .voice-control.speaking {
+            background-color: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .youtube-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .youtube-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .youtube-button {
+            padding: 12px 20px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .youtube-button:hover {
+            background-color: #3367d6;
+        }
+        .message-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            resize: none;
+            min-height: 24px;
+            max-height: 150px;
+            line-height: 1.5;
+            spellcheck: true;
+        }
+        .message-input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+        .send-button {
+            padding: 12px 24px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .send-button:hover {
+            background-color: #3367d6;
+        }
+        .send-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .typing-indicator {
+            display: none;
+            color: #666;
+            font-style: italic;
+            margin: 10px 0;
+            align-self: flex-start;
+        }
+        .message-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: none;
+        }
+        .message:hover .message-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .message-action-button {
+            background: none;
+            border: none;
+            padding: 2px;
+            cursor: pointer;
+            color: inherit;
+            opacity: 0.7;
+        }
+        .message-action-button:hover {
+            opacity: 1;
+        }
+        .welcome-message {
+            text-align: center;
+            color: #666;
+            margin: 20px 0;
+            font-style: italic;
+        }
+        .spellcheck-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+            min-width: 150px;
+        }
+        .spellcheck-menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .spellcheck-menu-item:last-child {
+            border-bottom: none;
+        }
+        .spellcheck-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+        .quick-action-button:hover {
+            background-color: #f5f5f5;
+        }
+        .provider-tab {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            color: #333;
+        }
+        .provider-tab.active {
+            background: #4285f4;
+            color: white;
+            border-color: #4285f4;
+        }
+        .model-section {
+            display: none;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            justify-items: center;
+            align-items: center;
+            background: none;
+            padding: 20px;
+        }
+        .model-section.active {
+            display: grid;
+        }
+        .model-card {
+            width: 160px;
+            height: 160px;
+            display: flex !important;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: unset;
+            background: #fff;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            padding: 18px 10px;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            box-sizing: border-box;
+        }
+        .model-card:hover {
+            border-color: #4285f4;
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.08);
+            background: #f5faff;
+        }
+        .model-card.selected {
+            border-color: #4285f4;
+            background: rgba(66, 133, 244, 0.07);
+        }
+        .model-card b {
+            font-size: 1.1em;
+            margin-bottom: 4px;
+        }
+        .model-card ul {
+            margin: 6px 0 0 18px;
+            padding: 0;
+            font-size: 14px;
+        }
+        .model-card .price {
+            margin-top: 8px;
+            color: #888;
+            font-size: 13px;
+        }
+        @media (max-width: 1100px) {
+            .model-section {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (max-width: 700px) {
+            .model-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        #modelModal > div {
+            width: 900px;
+            max-width: 900px;
+            min-width: 900px;
+        }
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .session-cost {
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="back-button" id="backButton" style="padding:4px 10px; font-size:13px; min-width:unset;">← Back</button>
+        </div>
+        <div class="header-info">
+            <span id="sessionCostDisplay" class="session-cost">Session Cost: $0.0000 AUD</span>
+            <button id="selectModelBtn" class="action-button" style="margin-left:16px;">Change Model</button>
+        </div>
+        <div class="chat-actions">
+            <button class="action-button" id="clearChat">Clear Chat</button>
+            <button class="action-button" id="exportChat">Export Chat</button>
+            <button class="action-button" id="summariseChat">Summarise Chat</button>
+            <button class="action-button" id="resetUI">Reset UI</button>
+            <button class="action-button" id="debugButton">Debug</button>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+    </div>
+
+    <div class="typing-indicator" id="typingIndicator">
+        AI Assistant is typing...
+    </div>
+
+    <div class="input-container">
+        <div class="input-wrapper">
+            <button class="voice-control" id="microphoneButton" title="Voice Input">
+                <span style="font-size:20px;">🎤</span>
+            </button>
+            <textarea 
+                class="message-input" 
+                id="messageInput" 
+                placeholder="Type your message here..."
+                rows="1"
+            ></textarea>
+            <button class="send-button" id="sendButton">Send</button>
+            <button class="voice-control" id="speakerButton" title="Voice Output">
+                <span style="font-size:20px;">🔊</span>
+            </button>
+            <button id="webSearchButton" class="action-button" title="Web Search" style="font-size:18px; padding:0 14px; background:#eee; color:#333; border:1px solid #ccc; margin-left:4px; display:flex; align-items:center; gap:6px; cursor:pointer; transition:background-color 0.2s;">
+                <span style="font-size:20px;">🌐</span>
+                <span style="font-size:15px;">Web Search</span>
+            </button>
+            <button class="action-button" id="imageCreationButton" title="Image Creation" style="font-size:18px; padding:0 14px; background:#eee; color:#333; border:1px solid #ccc; margin-left:4px; display:flex; align-items:center; gap:6px; cursor:pointer; transition:background-color 0.2s;"><span style="font-size:20px;">🎨</span><span style="font-size:15px;">Image Creation</span></button>
+            <button class="action-button" id="plusButton" style="font-size:22px; padding:0 14px; background:#eee; color:#333; border:1px solid #ccc; margin-left:4px; cursor:pointer; transition:background-color 0.2s;">+</button>
+        </div>
+    </div>
+
+    <!-- Quick Actions Menu -->
+    <div id="quickActionsMenu" style="display:none; position:absolute; bottom:70px; right:20px; background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:8px; min-width:200px;">
+        <button id="youtubeButton" class="quick-action-button" style="display:flex; align-items:center; gap:8px; width:100%; padding:8px 12px; border:none; background:none; cursor:pointer; border-radius:4px;">
+            <span style="font-size:20px;">🎥</span>
+            <span>YouTube URL</span>
+        </button>
+        <button id="imageButton" class="quick-action-button" style="display:flex; align-items:center; gap:8px; width:100%; padding:8px 12px; border:none; background:none; cursor:pointer; border-radius:4px;">
+            <span style="font-size:20px;">🖼️</span>
+            <span>Upload Image</span>
+        </button>
+        <button id="fileButton" class="quick-action-button" style="display:flex; align-items:center; gap:8px; width:100%; padding:8px 12px; border:none; background:none; cursor:pointer; border-radius:4px;">
+            <span style="font-size:20px;">📎</span>
+            <span>Upload File</span>
+        </button>
+    </div>
+
+    <div id="summaryModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:8px; max-width:600px; width:90%; margin:auto; padding:32px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+            <button id="closeSummaryModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
+            <h2>Chat Summary</h2>
+            <div id="summaryContent" style="margin-top:16px; color:#333;"></div>
+            <button id="commitMemoryButton" style="margin-top:24px; background:#4285f4; color:white; border:none; border-radius:4px; padding:10px 20px; cursor:pointer; font-size:16px;">Commit to Memory</button>
+            <div id="commitMemoryStatus" style="margin-top:10px; color:#34a853; display:none;">Committed to memory!</div>
+        </div>
+    </div>
+
+    <div id="debugOutput" class="debug-bar" style="position:fixed;bottom:0;left:0;right:0;background:#ffeeba;color:#333;padding:8px;z-index:999;font-size:14px;display:none;"></div>
+
+    <div class="spellcheck-menu" id="spellcheckMenu"></div>
+
+    <!-- Modal for quick actions (YouTube summariser, etc.) -->
+    <div id="quickActionModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:8px; max-width:420px; width:92%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+            <button id="closeQuickActionModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
+            <h2 style="margin-top:0; font-size:1.3em;">Quick Actions</h2>
+            <div id="quickActionContent">
+                <div id="youtubeSummariserPanel">
+                    <label for="youtubeUrlInput" style="font-weight:500;">Summarise a YouTube Video</label>
+                    <input type="text" id="youtubeUrlInput" placeholder="Paste YouTube link here..." style="width:100%; margin-top:8px; margin-bottom:10px; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
+                    <button id="summariseYoutubeBtn" style="width:100%; background:#e53935; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Summarise Video</button>
+                    <div id="youtubeSummaryStatus" style="margin-top:12px; color:#666; font-size:14px;"></div>
+                    <div id="youtubeSummaryResult" style="margin-top:18px; max-height:220px; overflow-y:auto; background:#f5f5f5; border-radius:6px; padding:14px; color:#222; font-size:15px; display:none;">
+                        <div style="margin-bottom:16px;">
+                            <h3 style="margin:0 0 8px 0; font-size:16px;">Summary</h3>
+                            <div id="summaryText"></div>
+                        </div>
+                        <div>
+                            <h3 style="margin:16px 0 8px 0; font-size:16px;">Full Transcript</h3>
+                            <div id="transcriptText" style="font-size:14px; color:#444;"></div>
+                        </div>
+                    </div>
+                    <div id="youtubeActionButtons" style="margin-top:10px; display:none; gap:8px;">
+                        <button id="sendSummaryToChat" style="flex:1; background:#4285f4; color:white; border:none; border-radius:4px; padding:10px 0; font-size:15px; cursor:pointer;">Send Summary</button>
+                        <button id="sendTranscriptToChat" style="flex:1; background:#34a853; color:white; border:none; border-radius:4px; padding:10px 0; font-size:15px; cursor:pointer;">Send Transcript</button>
+                        <button id="sendBothToChat" style="flex:1; background:#fbbc05; color:white; border:none; border-radius:4px; padding:10px 0; font-size:15px; cursor:pointer;">Send Both</button>
+                    </div>
+                </div>
+                <!-- More quick actions can be added here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Selection Modal -->
+    <div id="modelModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:16px; max-width:800px; width:95%; margin:auto; padding:40px 32px 32px 32px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+            <button id="closeModelModal" style="position:absolute; top:18px; right:18px; background:none; border:none; font-size:28px; cursor:pointer;">&times;</button>
+            <h2 style="text-align:center; margin-bottom:32px;">Select AI Model</h2>
+            
+            <!-- Provider Selection -->
+            <div style="margin-bottom:24px; display:flex; gap:8px; justify-content:center;">
+                <button class="provider-tab active" data-provider="openai">OpenAI</button>
+                <button class="provider-tab" data-provider="anthropic">Anthropic</button>
+                <button class="provider-tab" data-provider="google">Google</button>
+                <button class="provider-tab" data-provider="mistral">Mistral</button>
+                <button class="provider-tab" data-provider="cohere">Cohere</button>
+                <button class="provider-tab" data-provider="meta">Meta</button>
+            </div>
+            
+            <!-- Model Cards -->
+            <!-- OpenAI Models -->
+            <div class="model-section" data-provider="openai">
+                <div class="model-card" data-model="gpt-4o">
+                    <b>GPT-4o</b><br>
+                    <ul>
+                        <li>Text, Image, Audio</li>
+                        <li>Function calling, vision</li>
+                    </ul>
+                    <div class="price">$0.0076 AUD / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="gpt-4-turbo">
+                    <b>GPT-4 Turbo</b><br>
+                    <ul>
+                        <li>Text, Image</li>
+                        <li>Function calling</li>
+                    </ul>
+                    <div class="price">$0.0152 AUD / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="gpt-4">
+                    <b>GPT-4</b><br>
+                    <ul>
+                        <li>Text, Image</li>
+                        <li>High accuracy</li>
+                    </ul>
+                    <div class="price">$0.0456 AUD / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="gpt-4-vision-preview">
+                    <b>GPT-4 Vision</b><br>
+                    <ul>
+                        <li>Text, Image (Vision)</li>
+                        <li>Image understanding</li>
+                    </ul>
+                    <div class="price">$0.0456 AUD / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="gpt-3.5-turbo">
+                    <b>GPT-3.5 Turbo</b><br>
+                    <ul>
+                        <li>Text only</li>
+                    </ul>
+                    <div class="price">$0.0023 AUD / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="whisper">
+                    <b>Whisper</b><br>
+                    <ul>
+                        <li>Audio transcription</li>
+                        <li>Speech-to-text</li>
+                    </ul>
+                    <div class="price">$0.0091 AUD / min</div>
+                </div>
+                <div class="model-card" data-model="dall-e-3">
+                    <b>DALL·E 3</b><br>
+                    <ul>
+                        <li>Text to Image</li>
+                        <li>Inpainting, outpainting</li>
+                    </ul>
+                    <div class="price">$0.0400–$0.1200 / image</div>
+                </div>
+                <div class="model-card" data-model="tts">
+                    <b>TTS</b><br>
+                    <ul>
+                        <li>Text to Speech</li>
+                        <li>Alloy, Nova, Onyx, etc.</li>
+                    </ul>
+                    <div class="price">$0.0150–$0.0300 / 1K char</div>
+                </div>
+            </div>
+
+            <!-- Anthropic Models -->
+            <div class="model-section" data-provider="anthropic" style="display:none;">
+                <div class="model-card" data-model="claude-3-opus">
+                    <b>Claude 3 Opus</b><br>
+                    <ul>
+                        <li>Most capable model</li>
+                        <li>Text, Image</li>
+                    </ul>
+                    <div class="price">$0.0150 / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="claude-3-sonnet">
+                    <b>Claude 3 Sonnet</b><br>
+                    <ul>
+                        <li>Balanced performance</li>
+                        <li>Text, Image</li>
+                    </ul>
+                    <div class="price">$0.0030 / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="claude-3-haiku">
+                    <b>Claude 3 Haiku</b><br>
+                    <ul>
+                        <li>Fastest, lowest cost</li>
+                        <li>Text, Image</li>
+                    </ul>
+                    <div class="price">$0.00025 / 1K tokens</div>
+                </div>
+            </div>
+
+            <!-- Google Models -->
+            <div class="model-section" data-provider="google" style="display:none;">
+                <div class="model-card" data-model="gemini-1.5-pro">
+                    <b>Gemini 1.5 Pro</b><br>
+                    <ul>
+                        <li>Text, Image</li>
+                        <li>Long context</li>
+                    </ul>
+                    <div class="price">$0.0025 / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="gemini-1.0-pro">
+                    <b>Gemini 1.0 Pro</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>General purpose</li>
+                    </ul>
+                    <div class="price">$0.0010 / 1K tokens</div>
+                </div>
+            </div>
+
+            <!-- Mistral Models -->
+            <div class="model-section" data-provider="mistral" style="display:none;">
+                <div class="model-card" data-model="mistral-large">
+                    <b>Mistral Large</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>High performance</li>
+                    </ul>
+                    <div class="price">$0.0080 / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="mistral-medium">
+                    <b>Mistral Medium</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>Balanced performance</li>
+                    </ul>
+                    <div class="price">$0.0027 / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="mistral-small">
+                    <b>Mistral Small</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>Fastest, lowest cost</li>
+                    </ul>
+                    <div class="price">$0.0010 / 1K tokens</div>
+                </div>
+            </div>
+
+            <!-- Cohere Models -->
+            <div class="model-section" data-provider="cohere" style="display:none;">
+                <div class="model-card" data-model="command-r-plus">
+                    <b>Command R+</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>RAG optimized</li>
+                    </ul>
+                    <div class="price">$0.0030 / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="command">
+                    <b>Command</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>General purpose</li>
+                    </ul>
+                    <div class="price">$0.0015 / 1K tokens</div>
+                </div>
+            </div>
+
+            <!-- Meta Models -->
+            <div class="model-section" data-provider="meta" style="display:none;">
+                <div class="model-card" data-model="llama-3-70b">
+                    <b>Llama 3 70B</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>Open source</li>
+                    </ul>
+                    <div class="price">$0.0020 / 1K tokens</div>
+                </div>
+                <div class="model-card" data-model="llama-3-8b">
+                    <b>Llama 3 8B</b><br>
+                    <ul>
+                        <li>Text only</li>
+                        <li>Lightweight</li>
+                    </ul>
+                    <div class="price">$0.0005 / 1K tokens</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Creation Modal -->
+    <div id="imageCreationModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:3000; align-items:center; justify-content:center;">
+        <div style="background:#fff; padding:24px 20px 16px 20px; border-radius:10px; min-width:320px; box-shadow:0 2px 16px rgba(0,0,0,0.15); display:flex; flex-direction:column; align-items:stretch;">
+            <label for="imagePromptInput" style="font-size:16px; margin-bottom:8px;">Describe the image you want to create:</label>
+            <input id="imagePromptInput" type="text" style="font-size:16px; padding:8px; border-radius:5px; border:1px solid #ccc; margin-bottom:16px;" placeholder="e.g. A bird eating pizza">
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="imagePromptCancel" style="padding:6px 16px; border-radius:5px; border:none; background:#eee; color:#333;">Cancel</button>
+                <button id="imagePromptCreate" style="padding:6px 16px; border-radius:5px; border:none; background:#007bff; color:#fff;">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Analysis Modal -->
+    <div id="imageAnalysisModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:3100; align-items:center; justify-content:center;">
+      <div style="background:white; border-radius:12px; max-width:480px; width:95%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+        <button id="closeImageAnalysisModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
+        <h2 style="margin-top:0; font-size:1.3em;">Image Analysis</h2>
+        <div id="imageAnalysisPreview" style="text-align:center; margin-bottom:16px;"></div>
+        <div id="imageAnalysisHistory" style="max-height:180px; overflow-y:auto; margin-bottom:12px; border:1px solid #eee; border-radius:6px; padding:8px; background:#fafafa;"></div>
+        <input type="text" id="imageAnalysisInput" placeholder="Ask a question about this image..." style="width:100%; margin-bottom:8px; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
+        <div style="display:flex; gap:8px;">
+          <button id="imageAnalysisSendBtn" style="flex:1; background:#1976d2; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Send</button>
+          <button id="imageAnalysisToChatBtn" style="flex:1; background:#ccc; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:not-allowed;" disabled>Send to Chat</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Analysis Modal -->
+    <div id="documentAnalysisModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:3100; align-items:center; justify-content:center;">
+      <div style="background:white; border-radius:12px; max-width:480px; width:95%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+        <button id="closeDocumentAnalysisModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
+        <h2 style="margin-top:0; font-size:1.3em;">Document Analysis</h2>
+        <div id="documentName" style="margin-bottom:8px; font-weight:bold;"></div>
+        <div id="documentType" style="margin-bottom:16px; color:#666;"></div>
+        <div id="documentAnalysisHistory" style="max-height:180px; overflow-y:auto; margin-bottom:12px; border:1px solid #eee; border-radius:6px; padding:8px; background:#fafafa;"></div>
+        <input type="text" id="documentAnalysisInput" placeholder="Ask a question about this document..." style="width:100%; margin-bottom:8px; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
+        <div style="display:flex; gap:8px;">
+          <button id="documentAnalysisSendBtn" style="flex:1; background:#1976d2; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Send</button>
+          <button id="documentAnalysisToChatBtn" style="flex:1; background:#ccc; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:not-allowed;" disabled>Send to Chat</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html> 

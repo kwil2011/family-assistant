@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Management - Family AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .back-button {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+        }
+        h1 {
+            margin: 0;
+            color: #333;
+        }
+        .account-container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .section h2 {
+            color: #333;
+            margin: 0 0 20px 0;
+            font-size: 1.2em;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+        }
+        .button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .button:hover {
+            background-color: #3367d6;
+        }
+        .button.secondary {
+            background-color: white;
+            border: 1px solid #ddd;
+            color: #333;
+        }
+        .button.secondary:hover {
+            background-color: #f5f5f5;
+        }
+        .button.danger {
+            background-color: #dc3545;
+        }
+        .button.danger:hover {
+            background-color: #c82333;
+        }
+        .success-message {
+            color: #34a853;
+            margin-top: 10px;
+            display: none;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+            display: none;
+        }
+        .api-key-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .api-key-input {
+            flex-grow: 1;
+        }
+        .toggle-visibility {
+            background: none;
+            border: none;
+            color: #4285f4;
+            cursor: pointer;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-button" id="backButton">← Back to Dashboard</button>
+        <h1>Account Management</h1>
+    </div>
+
+    <div class="account-container">
+        <div class="section">
+            <h2>Profile Information</h2>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" required>
+                </div>
+                <button type="submit" class="button">Update Profile</button>
+                <div id="profileSuccess" class="success-message">Profile updated successfully!</div>
+                <div id="profileError" class="error-message"></div>
+            </form>
+        </div>
+
+        <!-- Cost Section -->
+        <div class="section">
+            <h2>Usage Costs</h2>
+            <div style="font-size: 1.1em; margin-bottom: 8px;">
+                <b>Session Cost:</b> <span id="sessionCostDisplay">$0.0000 AUD</span>
+            </div>
+            <div style="font-size: 1.1em;">
+                <b>Month to Date:</b> <span id="cumulativeCostDisplay">$0.0000 AUD</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Change Password</h2>
+            <form id="passwordForm">
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input type="password" id="confirmPassword" required>
+                </div>
+                <button type="submit" class="button">Change Password</button>
+                <div id="passwordSuccess" class="success-message">Password changed successfully!</div>
+                <div id="passwordError" class="error-message"></div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>API Settings</h2>
+            <form id="apiForm">
+                <div class="form-group">
+                    <label for="llmSelect">Select LLM Provider</label>
+                    <select id="llmSelect" class="api-key-input" required>
+                        <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="google">Google (Gemini)</option>
+                        <option value="mistral">Mistral AI</option>
+                        <option value="cohere">Cohere</option>
+                        <option value="meta">Meta (Llama)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="apiKey">API Key</label>
+                    <div class="api-key-container">
+                        <input type="password" id="apiKey" class="api-key-input" required>
+                        <button type="button" class="toggle-visibility" id="toggleApiKey">Show</button>
+                    </div>
+                </div>
+                <button type="submit" class="button">Update API Key</button>
+                <div id="apiSuccess" class="success-message">API key updated successfully!</div>
+                <div id="apiError" class="error-message"></div>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Account Actions</h2>
+            <button id="deleteAccount" class="button danger">Delete Account</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Get DOM elements
+            const profileForm = document.getElementById('profileForm');
+            const passwordForm = document.getElementById('passwordForm');
+            const apiForm = document.getElementById('apiForm');
+            const deleteAccountButton = document.getElementById('deleteAccount');
+            const toggleApiKeyButton = document.getElementById('toggleApiKey');
+            const apiKeyInput = document.getElementById('apiKey');
+            const sessionCostDisplay = document.getElementById('sessionCostDisplay');
+            const cumulativeCostDisplay = document.getElementById('cumulativeCostDisplay');
+
+            // Load user data
+            const userData = await window.electronAPI.storeGet('userData');
+            if (!userData || !userData.email) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            // Populate form fields
+            document.getElementById('name').value = userData.name || '';
+            document.getElementById('email').value = userData.email || '';
+            
+            // Get selected provider and model
+            const selectedProvider = await window.electronAPI.storeGet('selectedProvider') || 'openai';
+            const selectedModel = await window.electronAPI.storeGet('selectedModel') || 'gpt-4o';
+            
+            // Set the selected provider and API key
+            document.getElementById('llmSelect').value = selectedProvider;
+            document.getElementById('apiKey').value = userData[`${selectedProvider}ApiKey`] || '';
+
+            // Fetch and display costs
+            // Use localStorage for session cost persistence
+            let sessionCost = parseFloat(localStorage.getItem('sessionCost')) || 0;
+            sessionCostDisplay.textContent = `$${sessionCost.toFixed(4)} AUD`;
+
+            // Cumulative cost (month to date)
+            let totalCost = await window.electronAPI.storeGet(`totalCost-${userData.email}`) || 0;
+            cumulativeCostDisplay.textContent = `$${parseFloat(totalCost).toFixed(4)} AUD`;
+
+            // Handle LLM selection change
+            document.getElementById('llmSelect').addEventListener('change', (e) => {
+                const selectedProvider = e.target.value;
+                const apiKeyInput = document.getElementById('apiKey');
+                apiKeyInput.value = userData[`${selectedProvider}ApiKey`] || '';
+            });
+
+            // Handle profile update
+            profileForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('name').value;
+                const email = document.getElementById('email').value;
+
+                try {
+                    const updatedData = { ...userData, name, email };
+                    await window.electronAPI.storeSet('userData', updatedData);
+                    document.getElementById('profileSuccess').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('profileSuccess').style.display = 'none';
+                    }, 3000);
+                } catch (error) {
+                    document.getElementById('profileError').textContent = error.message;
+                    document.getElementById('profileError').style.display = 'block';
+                }
+            });
+
+            // Handle password change
+            passwordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const currentPassword = document.getElementById('currentPassword').value;
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+
+                if (currentPassword !== userData.password) {
+                    document.getElementById('passwordError').textContent = 'Current password is incorrect';
+                    document.getElementById('passwordError').style.display = 'block';
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    document.getElementById('passwordError').textContent = 'New passwords do not match';
+                    document.getElementById('passwordError').style.display = 'block';
+                    return;
+                }
+
+                try {
+                    const updatedData = { ...userData, password: newPassword };
+                    await window.electronAPI.storeSet('userData', updatedData);
+                    document.getElementById('passwordSuccess').style.display = 'block';
+                    passwordForm.reset();
+                    setTimeout(() => {
+                        document.getElementById('passwordSuccess').style.display = 'none';
+                    }, 3000);
+                } catch (error) {
+                    document.getElementById('passwordError').textContent = error.message;
+                    document.getElementById('passwordError').style.display = 'block';
+                }
+            });
+
+            // Handle API key update
+            apiForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const selectedProvider = document.getElementById('llmSelect').value;
+                const apiKey = document.getElementById('apiKey').value;
+
+                try {
+                    const apiKeys = {};
+                    const providers = ['openai', 'anthropic', 'google', 'mistral', 'cohere', 'meta'];
+                    providers.forEach(provider => {
+                        apiKeys[`${provider}ApiKey`] = userData[`${provider}ApiKey`] || '';
+                    });
+                    
+                    apiKeys[`${selectedProvider}ApiKey`] = apiKey;
+
+                    const updatedData = { 
+                        ...userData,
+                        ...apiKeys,
+                        llmProvider: selectedProvider
+                    };
+                    
+                    await window.electronAPI.storeSet('userData', updatedData);
+                    document.getElementById('apiSuccess').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('apiSuccess').style.display = 'none';
+                    }, 3000);
+                } catch (error) {
+                    document.getElementById('apiError').textContent = error.message;
+                    document.getElementById('apiError').style.display = 'block';
+                }
+            });
+
+            // Handle API key visibility toggle
+            toggleApiKeyButton.addEventListener('click', () => {
+                const type = apiKeyInput.type;
+                apiKeyInput.type = type === 'password' ? 'text' : 'password';
+                toggleApiKeyButton.textContent = type === 'password' ? 'Hide' : 'Show';
+            });
+
+            // Handle account deletion
+            deleteAccountButton.addEventListener('click', async () => {
+                const confirm = window.confirm('Are you sure you want to delete your account? This action cannot be undone.');
+                if (confirm) {
+                    try {
+                        await window.electronAPI.storeDelete('userData');
+                        window.location.replace('index.html');
+                    } catch (error) {
+                        console.error('Error deleting account:', error);
+                    }
+                }
+            });
+
+            // Handle back button
+            document.getElementById('backButton').addEventListener('click', () => {
+                window.location.href = 'dashboard.html';
+            });
+        });
+    </script>
+</body>
+</html> 
