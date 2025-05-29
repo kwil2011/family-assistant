@@ -1,0 +1,51 @@
+{
+  "name": "family-ai-assistant",
+  "version": "1.0.0",
+  "description": "A desktop-based AI assistant for families using OpenAI API",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"cross-env NODE_ENV=development electron .\" \"vite\"",
+    "build": "vite build",
+    "build:electron": "electron-builder build --win --publish never",
+    "build:win": "npm run build && npm run build:electron",
+    "test": "jest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
+  },
+  "keywords": [
+    "openai",
+    "electron",
+    "react",
+    "typescript",
+    "firebase"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.2.61",
+    "@types/react-dom": "^18.2.19",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^29.1.0",
+    "electron-builder": "^24.12.0",
+    "electron-playwright-helpers": "^1.7.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "electron-store": "^8.1.0",
+    "exceljs": "^4.4.0",
+    "firebase": "^11.6.1",
+    "google-search-results-nodejs": "^2.1.0",
+    "mammoth": "^1.9.0",
+    "openai": "^4.28.0",
+    "pdf-parse": "^1.1.1",
+    "typo-js": "^1.2.1",
+    "vite": "^6.3.3"
+  }
+}

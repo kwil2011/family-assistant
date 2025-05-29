@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Management - Family AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            color: #333;
+        }
+        .back-button {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+        }
+        .back-button:hover {
+            background-color: #f5f5f5;
+        }
+        .model-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .primary-button {
+            background-color: #4285f4;
+            color: white;
+        }
+        .danger-button {
+            background-color: #ea4335;
+            color: white;
+        }
+        .model-list {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .model-card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .model-card h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .model-card p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .model-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .success-message {
+            background-color: #e6f4ea;
+            color: #137333;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .error-message {
+            background-color: #fce8e6;
+            color: #c5221f;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            vertical-align: middle;
+        }
+        .switch input { display: none; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #4caf50;
+        }
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI Model Management</h1>
+        <button class="back-button" id="backButton">← Back to Admin</button>
+    </div>
+
+    <div class="model-form">
+        <h2>Add/Edit Model</h2>
+        <form id="modelForm">
+            <div class="form-group">
+                <label for="providerSelect">Provider</label>
+                <select id="providerSelect" required></select>
+            </div>
+            <div class="form-group">
+                <label for="modelName">Model Name</label>
+                <input type="text" id="modelName" required>
+            </div>
+            <div class="form-group">
+                <label for="maxTokens">Max Tokens</label>
+                <input type="number" id="maxTokens" required min="1">
+            </div>
+            <div class="form-group">
+                <label for="temperature">Temperature (0-2)</label>
+                <input type="number" id="temperature" required min="0" max="2" step="0.1">
+            </div>
+            <div class="form-group">
+                <label for="pricePerToken">Price per Token (USD)</label>
+                <input type="number" id="pricePerToken" required min="0" step="0.0001">
+            </div>
+            <div class="button-group">
+                <button type="submit" class="button primary-button" id="saveButton">Save Model</button>
+                <button type="button" class="button danger-button" id="deleteButton" style="display: none;">Delete Model</button>
+            </div>
+        </form>
+        <div id="successMessage" class="success-message"></div>
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <!-- Add New Provider Modal -->
+    <div id="addProviderModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:32px; border-radius:8px; min-width:380px; max-width:98vw; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+            <h2>Add New Provider</h2>
+            <form id="addProviderForm">
+                <div class="form-group">
+                    <label for="newProviderId">Provider ID</label>
+                    <input type="text" id="newProviderId" required placeholder="e.g. myprovider">
+                </div>
+                <div class="form-group">
+                    <label for="newProviderName">Provider Name</label>
+                    <input type="text" id="newProviderName" required placeholder="e.g. My Provider">
+                </div>
+                <div class="form-group">
+                    <label for="newProviderApiKey">API Key</label>
+                    <input type="text" id="newProviderApiKey" required placeholder="Enter API Key">
+                </div>
+                <div class="form-group">
+                    <label for="newProviderEndpoint">API Endpoint URL</label>
+                    <input type="text" id="newProviderEndpoint" required placeholder="https://api.example.com/v1/chat">
+                </div>
+                <div class="form-group">
+                    <label for="newProviderMethod">HTTP Method</label>
+                    <select id="newProviderMethod">
+                        <option value="POST">POST</option>
+                        <option value="GET">GET</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Custom Headers</label>
+                    <div id="headersList"></div>
+                    <button type="button" class="button" id="addHeaderBtn">+ Add Header</button>
+                </div>
+                <div class="form-group">
+                    <label for="newProviderBodyTemplate">Request Body Template</label>
+                    <textarea id="newProviderBodyTemplate" rows="4" style="width:100%;" placeholder='{"model": "{{model}}", "prompt": "{{prompt}}"'></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="newProviderResponsePath">Response Path</label>
+                    <input type="text" id="newProviderResponsePath" required placeholder="choices[0].message.content">
+                </div>
+                <div class="form-group">
+                    <label>Models</label>
+                    <div id="newProviderModelsList"></div>
+                    <button type="button" class="button" id="addNewModelBtn">+ Add Model</button>
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="button primary-button">Save Provider</button>
+                    <button type="button" class="button" id="cancelAddProvider">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add New Model Inline Form (hidden, shown when adding a model) -->
+    <div id="addModelInlineForm" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); z-index:1100; align-items:center; justify-content:center;">
+        <div style="background:white; padding:24px; border-radius:8px; min-width:320px; max-width:90vw; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+            <h3>Add Model</h3>
+            <form id="addModelForm">
+                <div class="form-group">
+                    <label for="newModelName">Model Name</label>
+                    <input type="text" id="newModelName" required>
+                </div>
+                <div class="form-group">
+                    <label for="newModelMaxTokens">Max Tokens</label>
+                    <input type="number" id="newModelMaxTokens" required min="1">
+                </div>
+                <div class="form-group">
+                    <label for="newModelTemperature">Temperature (0-2)</label>
+                    <input type="number" id="newModelTemperature" required min="0" max="2" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="newModelPricePerToken">Price per Token (USD)</label>
+                    <input type="number" id="newModelPricePerToken" required min="0" step="0.0001">
+                </div>
+                <div class="button-group">
+                    <button type="submit" class="button primary-button">Add Model</button>
+                    <button type="button" class="button" id="cancelAddModel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- API Key Management Section -->
+    <div class="model-form">
+        <h2>Provider API Keys</h2>
+        <div id="apiKeyList"></div>
+    </div>
+
+    <div class="model-list">
+        <h2>Available Models</h2>
+        <div id="modelList"></div>
+    </div>
+
+    <!-- Provider Models Display (like chat modal, but filtered by dropdown) -->
+    <div id="providerModelsSection" style="margin-top:32px;">
+        <h2>Models for Selected Provider</h2>
+        <div id="providerModelCards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px;"></div>
+    </div>
+
+    <script type="module">
+    import { PROVIDERS } from './models.js';
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Check if user is admin
+        const userData = await window.electronAPI.storeGet('userData');
+        if (!userData || !userData.isAdmin) {
+            window.location.href = 'dashboard.html';
+            return;
+        }
+
+        const modelForm = document.getElementById('modelForm');
+        const modelList = document.getElementById('modelList');
+        const saveButton = document.getElementById('saveButton');
+        const deleteButton = document.getElementById('deleteButton');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const providerSelect = document.getElementById('providerSelect');
+        const apiKeyList = document.getElementById('apiKeyList');
+        let editingModelId = null;
+        let allProviders = [];
+
+        // Load providers and populate provider dropdown
+        async function loadProviders() {
+            allProviders = await window.electronAPI.getAllProvidersAndModels();
+            providerSelect.innerHTML = '';
+            allProviders.forEach(provider => {
+                const opt = document.createElement('option');
+                opt.value = provider.id;
+                opt.textContent = provider.name;
+                providerSelect.appendChild(opt);
+            });
+        }
+
+        // Load API key management UI
+        async function loadApiKeys() {
+            apiKeyList.innerHTML = '';
+            for (const provider of allProviders) {
+                const apiKey = await window.electronAPI.getProviderApiKey(provider.id);
+                const div = document.createElement('div');
+                div.className = 'form-group';
+                div.innerHTML = `
+                    <label>${provider.name} API Key</label>
+                    <input type="password" id="apiKeyInput-${provider.id}" value="${apiKey}" style="width:60%;">
+                    <button type="button" class="button" onclick="toggleApiKey('${provider.id}')">Show/Hide</button>
+                    <button type="button" class="button primary-button" onclick="saveApiKey('${provider.id}')">Save</button>
+                `;
+                apiKeyList.appendChild(div);
+            }
+        }
+        window.toggleApiKey = (providerId) => {
+            const input = document.getElementById(`apiKeyInput-${providerId}`);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        };
+        window.saveApiKey = async (providerId) => {
+            const input = document.getElementById(`apiKeyInput-${providerId}`);
+            await window.electronAPI.setProviderApiKey(providerId, input.value);
+            showSuccess('API key saved for ' + providerId);
+        };
+
+        // Load models and display grouped by provider
+        async function loadModels() {
+            const providers = await window.electronAPI.getAllProvidersAndModels();
+            // Load hidden states from localStorage for non-custom models
+            let hiddenModels = JSON.parse(localStorage.getItem('hiddenModels') || '{}');
+            modelList.innerHTML = '';
+            providers.forEach(provider => {
+                const section = document.createElement('div');
+                section.innerHTML = `<h3>${provider.name}</h3>`;
+                provider.models.forEach(model => {
+                    // Apply hidden state from localStorage if not custom
+                    if (!model.isCustom && hiddenModels[provider.id] && hiddenModels[provider.id][model.id] !== undefined) {
+                        model.hidden = hiddenModels[provider.id][model.id];
+                    }
+                    const modelCard = document.createElement('div');
+                    modelCard.className = 'model-card';
+                    const isHidden = model.hidden === true; // Default to unhidden if not set
+                    modelCard.innerHTML = `
+                        <h4>${model.name}</h4>
+                        <p>Provider: ${provider.name}</p>
+                        <p>Input: $${model.inputPriceAUD?.toFixed(6) || 'N/A'} / 1K tokens</p>
+                        <p>Output: $${model.outputPriceAUD?.toFixed(6) || 'N/A'} / 1K tokens</p>
+                        <p>Features: ${model.features ? model.features.join(', ') : ''}</p>
+                        <p>${model.description || ''}</p>
+                        <div class="model-actions">
+                            <label class="switch" title="Toggle visibility in chat">
+                                <input type="checkbox" ${!isHidden ? 'checked' : ''} onchange="toggleHideModel('${model.id}','${provider.id}', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <span style="margin-left:8px; font-size:13px; color:${!isHidden ? '#4caf50' : '#c5221f'};">Visible in Chat</span>
+                        </div>
+                    `;
+                    section.appendChild(modelCard);
+                });
+                modelList.appendChild(section);
+            });
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        // Show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        // Handle form submission
+        modelForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const modelConfig = {
+                provider: providerSelect.value,
+                name: document.getElementById('modelName').value,
+                maxTokens: parseInt(document.getElementById('maxTokens').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                pricePerTokenUSD: parseFloat(document.getElementById('pricePerToken').value),
+                hidden: false // Ensure new custom models are visible by default
+            };
+            try {
+                if (editingModelId) {
+                    modelConfig.id = editingModelId;
+                    await window.electronAPI.updateCustomModel(modelConfig);
+                    showSuccess('Model updated successfully');
+                } else {
+                    await window.electronAPI.addCustomModel(modelConfig);
+                    showSuccess('Model added successfully');
+                }
+                modelForm.reset();
+                editingModelId = null;
+                deleteButton.style.display = 'none';
+                await loadModels();
+            } catch (error) {
+                showError('Failed to save model: ' + error.message);
+            }
+        });
+
+        // Edit model
+        window.editModel = async (id, providerId) => {
+            try {
+                const providers = await window.electronAPI.getAllProvidersAndModels();
+                const provider = providers.find(p => p.id === providerId);
+                const model = provider ? provider.models.find(m => m.id === id) : null;
+                if (model) {
+                    providerSelect.value = providerId;
+                    document.getElementById('modelName').value = model.name;
+                    document.getElementById('maxTokens').value = model.maxTokens;
+                    document.getElementById('temperature').value = model.temperature;
+                    document.getElementById('pricePerToken').value = model.pricePerTokenUSD;
+                    editingModelId = id;
+                    deleteButton.style.display = 'block';
+                }
+            } catch (error) {
+                showError('Failed to load model: ' + error.message);
+            }
+        };
+
+        // Delete model
+        deleteButton.addEventListener('click', async () => {
+            if (!editingModelId) return;
+            try {
+                await window.electronAPI.deleteCustomModel(editingModelId);
+                showSuccess('Model deleted successfully');
+                modelForm.reset();
+                editingModelId = null;
+                deleteButton.style.display = 'none';
+                await loadModels();
+            } catch (error) {
+                showError('Failed to delete model: ' + error.message);
+            }
+        });
+
+        // Back button
+        document.getElementById('backButton').addEventListener('click', () => {
+            window.location.href = 'admin.html';
+        });
+
+        // Robust toggleHideModel with error handling and UI refresh
+        window.toggleHideModel = async (id, providerId, checked) => {
+            console.log('toggleHideModel called', { id, providerId, checked });
+            try {
+                const providers = await window.electronAPI.getAllProvidersAndModels();
+                const provider = providers.find(p => p.id === providerId);
+                const model = provider ? provider.models.find(m => m.id === id) : null;
+                if (model) {
+                    // Set hidden property based on toggle (checked = visible)
+                    model.hidden = !checked;
+                    let hiddenModels = JSON.parse(localStorage.getItem('hiddenModels') || '{}');
+                    if (!hiddenModels[providerId]) hiddenModels[providerId] = {};
+                    hiddenModels[providerId][id] = model.hidden;
+                    localStorage.setItem('hiddenModels', JSON.stringify(hiddenModels));
+                    await loadModels(); // Always refresh UI
+                }
+            } catch (err) {
+                alert('Error toggling model visibility: ' + err.message);
+                console.error(err);
+            }
+        };
+
+        // Show/hide Add Provider Modal
+        function showAddProviderModal(show) {
+            document.getElementById('addProviderModal').style.display = show ? 'flex' : 'none';
+        }
+
+        // Show/hide Add Model Inline Form
+        function showAddModelInlineForm(show) {
+            document.getElementById('addModelInlineForm').style.display = show ? 'flex' : 'none';
+        }
+
+        // Models for the new provider (in-memory before save)
+        let newProviderModels = [];
+
+        // Handle provider dropdown change
+        providerSelect.addEventListener('change', function() {
+            if (providerSelect.value === 'add_new') {
+                showAddProviderModal(true);
+            }
+        });
+
+        // Handle Add Model button
+        document.getElementById('addNewModelBtn').addEventListener('click', function() {
+            showAddModelInlineForm(true);
+        });
+
+        // Handle Add Model Inline Form
+        const addModelForm = document.getElementById('addModelForm');
+        const cancelAddModel = document.getElementById('cancelAddModel');
+        addModelForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const model = {
+                name: document.getElementById('newModelName').value.trim(),
+                maxTokens: parseInt(document.getElementById('newModelMaxTokens').value),
+                temperature: parseFloat(document.getElementById('newModelTemperature').value),
+                pricePerTokenUSD: parseFloat(document.getElementById('newModelPricePerToken').value),
+                isCustom: true
+            };
+            newProviderModels.push(model);
+            renderNewProviderModelsList();
+            addModelForm.reset();
+            showAddModelInlineForm(false);
+        });
+        cancelAddModel.addEventListener('click', function() {
+            addModelForm.reset();
+            showAddModelInlineForm(false);
+        });
+
+        // Render models list in the provider modal
+        function renderNewProviderModelsList() {
+            const list = document.getElementById('newProviderModelsList');
+            list.innerHTML = '';
+            newProviderModels.forEach((model, idx) => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '8px';
+                div.innerHTML = `<b>${model.name}</b> (Max Tokens: ${model.maxTokens}, Temp: ${model.temperature}, $/Token: ${model.pricePerTokenUSD.toFixed(4)}) <button type='button' data-idx='${idx}' class='button danger-button removeModelBtn' style='padding:2px 8px; font-size:12px;'>Remove</button>`;
+                list.appendChild(div);
+            });
+            // Remove model handler
+            list.querySelectorAll('.removeModelBtn').forEach(btn => {
+                btn.onclick = function() {
+                    const idx = parseInt(btn.getAttribute('data-idx'));
+                    newProviderModels.splice(idx, 1);
+                    renderNewProviderModelsList();
+                };
+            });
+        }
+
+        // --- Header key-value logic ---
+        let newProviderHeaders = [];
+        function renderHeadersList() {
+            const list = document.getElementById('headersList');
+            list.innerHTML = '';
+            newProviderHeaders.forEach((header, idx) => {
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.gap = '8px';
+                div.style.marginBottom = '4px';
+                div.innerHTML = `
+                    <input type='text' placeholder='Key' value='${header.key}' style='width:40%;'>
+                    <input type='text' placeholder='Value' value='${header.value}' style='width:50%;'>
+                    <button type='button' class='button danger-button' style='padding:2px 8px; font-size:12px;'>Remove</button>
+                `;
+                // Key/value change handlers
+                div.children[0].oninput = (e) => { newProviderHeaders[idx].key = e.target.value; };
+                div.children[1].oninput = (e) => { newProviderHeaders[idx].value = e.target.value; };
+                // Remove handler
+                div.children[2].onclick = () => { newProviderHeaders.splice(idx, 1); renderHeadersList(); };
+                list.appendChild(div);
+            });
+        }
+        document.getElementById('addHeaderBtn').onclick = function() {
+            newProviderHeaders.push({ key: '', value: '' });
+            renderHeadersList();
+        };
+
+        // Handle Add Provider Modal form
+        const addProviderForm = document.getElementById('addProviderForm');
+        const cancelAddProvider = document.getElementById('cancelAddProvider');
+        addProviderForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const id = document.getElementById('newProviderId').value.trim();
+            const name = document.getElementById('newProviderName').value.trim();
+            const apiKey = document.getElementById('newProviderApiKey').value.trim();
+            const endpoint = document.getElementById('newProviderEndpoint').value.trim();
+            const method = document.getElementById('newProviderMethod').value;
+            const bodyTemplate = document.getElementById('newProviderBodyTemplate').value.trim();
+            const responsePath = document.getElementById('newProviderResponsePath').value.trim();
+            if (!id || !name || !apiKey || !endpoint || !responsePath || newProviderModels.length === 0) return;
+            // Save API key
+            await window.electronAPI.setProviderApiKey(id, apiKey);
+            // Save each model as a custom model, including provider API config
+            for (const model of newProviderModels) {
+                const modelConfig = {
+                    ...model,
+                    provider: id,
+                    providerName: name,
+                    apiConfig: {
+                        endpoint,
+                        method,
+                        headers: newProviderHeaders.filter(h => h.key),
+                        bodyTemplate,
+                        responsePath
+                    }
+                };
+                await window.electronAPI.addCustomModel(modelConfig);
+            }
+            await loadProviders();
+            providerSelect.value = id;
+            showAddProviderModal(false);
+            addProviderForm.reset();
+            newProviderModels = [];
+            newProviderHeaders = [];
+            renderNewProviderModelsList();
+            renderHeadersList();
+        });
+        cancelAddProvider.addEventListener('click', function() {
+            showAddProviderModal(false);
+            providerSelect.value = allProviders.length ? allProviders[0].id : '';
+            addProviderForm.reset();
+            newProviderModels = [];
+            newProviderHeaders = [];
+            renderNewProviderModelsList();
+            renderHeadersList();
+        });
+
+        // Model selection state (persisted in localStorage)
+        function getSelectedModels() {
+            return JSON.parse(localStorage.getItem('selectedModels') || '{}');
+        }
+        function setSelectedModels(selected) {
+            localStorage.setItem('selectedModels', JSON.stringify(selected));
+        }
+        // Render provider model cards with checkboxes
+        function renderProviderModelCards() {
+            const providerId = providerSelect.value;
+            const provider = PROVIDERS.find(p => p.id === providerId);
+            const container = document.getElementById('providerModelCards');
+            container.innerHTML = '';
+            if (!provider) return;
+            const selectedModels = getSelectedModels();
+            provider.models.forEach(model => {
+                const checked = selectedModels[providerId]?.includes(model.id);
+                const card = document.createElement('div');
+                card.className = 'model-card';
+                card.innerHTML = `
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                      <input type="checkbox" data-model-id="${model.id}" ${checked ? 'checked' : ''}>
+                      <b>${model.name}</b>
+                    </label>
+                    <ul style="margin:8px 0 8px 16px;">
+                      ${model.features.map(f => `<li>${f}</li>`).join('')}
+                    </ul>
+                    <div class="price">${model.price}</div>
+                `;
+                // Checkbox event
+                card.querySelector('input[type=checkbox]').addEventListener('change', function(e) {
+                    let selected = getSelectedModels();
+                    if (!selected[providerId]) selected[providerId] = [];
+                    if (e.target.checked) {
+                        if (!selected[providerId].includes(model.id)) selected[providerId].push(model.id);
+                    } else {
+                        selected[providerId] = selected[providerId].filter(id => id !== model.id);
+                    }
+                    setSelectedModels(selected);
+                });
+                container.appendChild(card);
+            });
+        }
+        // Populate provider dropdown from PROVIDERS
+        function populateProviderDropdown() {
+            providerSelect.innerHTML = '';
+            PROVIDERS.forEach(provider => {
+                const opt = document.createElement('option');
+                opt.value = provider.id;
+                opt.textContent = provider.name;
+                providerSelect.appendChild(opt);
+            });
+        }
+        providerSelect.addEventListener('change', renderProviderModelCards);
+        // Initial load
+        populateProviderDropdown();
+        renderProviderModelCards();
+        
+        // Load providers and API keys
+        await loadProviders();
+        await loadApiKeys();
+    });
+    </script>
+</body>
+</html> 

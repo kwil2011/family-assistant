@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings - Family AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .back-button {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+        }
+        h1 {
+            margin: 0;
+            color: #333;
+        }
+        .settings-container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .setting-group {
+            margin-bottom: 30px;
+        }
+        .setting-group h2 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.2em;
+        }
+        .setting-item {
+            margin-bottom: 20px;
+        }
+        .setting-item label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        .setting-item input[type="text"],
+        .setting-item input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .api-key-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .api-key-input {
+            flex: 1;
+        }
+        .toggle-visibility {
+            padding: 8px 16px;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .help-text {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+            font-size: 12px;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .primary-button {
+            background-color: #4285f4;
+            color: white;
+        }
+        .primary-button:hover {
+            background-color: #3367d6;
+        }
+        .success-message {
+            background-color: #e6f4ea;
+            color: #137333;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .error-message {
+            background-color: #fce8e6;
+            color: #c5221f;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <button class="back-button" id="backButton">← Back to Admin</button>
+        <h1>System Settings</h1>
+    </div>
+
+    <div class="settings-container">
+        <form id="settingsForm">
+            <div class="setting-group">
+                <h2>Environment Variables</h2>
+                <div class="warning-box">
+                    <strong>⚠️ Important Security Notice</strong>
+                    <p>These settings affect the entire system. Changes here may require an application restart.</p>
+                    <p><strong>Warning:</strong> Changing the Store Encryption Key will re-encrypt all stored data. Make sure to keep a backup of your data before proceeding.</p>
+                </div>
+                <div class="setting-item">
+                    <label for="serpapiKey">SERPAPI API Key</label>
+                    <div class="api-key-container">
+                        <input type="password" id="serpapiKey" class="api-key-input" required>
+                        <button type="button" class="toggle-visibility" onclick="toggleVisibility('serpapiKey')">Show</button>
+                    </div>
+                    <small class="help-text">Used for web search functionality</small>
+                </div>
+                <div class="setting-item">
+                    <label for="storeEncryptionKey">Store Encryption Key</label>
+                    <div class="api-key-container">
+                        <input type="password" id="storeEncryptionKey" class="api-key-input" required>
+                        <button type="button" class="toggle-visibility" onclick="toggleVisibility('storeEncryptionKey')">Show</button>
+                    </div>
+                    <small class="help-text">Used to encrypt stored data. Changing this will re-encrypt all data.</small>
+                </div>
+            </div>
+            <div class="button-group">
+                <button type="submit" class="button primary-button">Save Changes</button>
+            </div>
+        </form>
+        <div id="successMessage" class="success-message"></div>
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <script>
+        function toggleVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                button.textContent = 'Show';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if user is admin
+            const userData = await window.electronAPI.storeGet('userData');
+            if (!userData || !userData.isAdmin) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // Load current environment variables
+            try {
+                const envVars = await window.electronAPI.getEnvironmentVariables();
+                document.getElementById('serpapiKey').value = envVars.SERPAPI_API_KEY || '';
+                document.getElementById('storeEncryptionKey').value = envVars.STORE_ENCRYPTION_KEY || '';
+            } catch (error) {
+                console.error('Error loading environment variables:', error);
+                document.getElementById('errorMessage').textContent = 'Error loading environment variables: ' + error.message;
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+
+            // Handle form submission
+            document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const serpapiKey = document.getElementById('serpapiKey').value;
+                const storeEncryptionKey = document.getElementById('storeEncryptionKey').value;
+                
+                try {
+                    await window.electronAPI.updateEnvironmentVariables({
+                        SERPAPI_API_KEY: serpapiKey,
+                        STORE_ENCRYPTION_KEY: storeEncryptionKey
+                    });
+                    
+                    document.getElementById('successMessage').textContent = 'Environment variables updated successfully! The application may need to be restarted for all changes to take effect.';
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('errorMessage').style.display = 'none';
+                    
+                    setTimeout(() => {
+                        document.getElementById('successMessage').style.display = 'none';
+                    }, 3000);
+                } catch (error) {
+                    document.getElementById('errorMessage').textContent = error.message;
+                    document.getElementById('errorMessage').style.display = 'block';
+                    document.getElementById('successMessage').style.display = 'none';
+                }
+            });
+
+            // Handle back button
+            document.getElementById('backButton').addEventListener('click', () => {
+                window.location.href = 'admin.html';
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,109 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+}
+
+.container, .personas-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.card, .personas-list, .persona-form {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+    padding: 20px;
+}
+
+.button, .save-button, .cancel-button, .back-button {
+    padding: 8px 16px;
+    background-color: #4285f4;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.button:hover, .save-button:hover, .cancel-button:hover, .back-button:hover {
+    background-color: #3367d6;
+}
+
+input[type="text"], textarea, input[type="password"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+input[type="range"] {
+    width: 100%;
+}
+
+.success-message {
+    color: #28a745;
+    margin-top: 10px;
+}
+
+.error-message {
+    color: #dc3545;
+    margin-top: 10px;
+}
+
+.persona-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.persona-item:last-child {
+    border-bottom: none;
+}
+
+.persona-info h3 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.persona-info .temperature {
+    font-size: 13px;
+    color: #666;
+}
+
+.persona-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.action-button {
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    color: #666;
+    transition: color 0.2s;
+}
+.action-button:hover {
+    color: #333;
+}
+.edit-button:hover {
+    color: #2196F3;
+}
+.delete-button:hover {
+    color: #f44336;
+} 

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Admin - Family AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .create-admin-container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h1 {
+            margin: 0 0 20px 0;
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .button:hover {
+            background-color: #3367d6;
+        }
+        .error-message {
+            color: #dc2626;
+            margin-top: 8px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+        .success-message {
+            color: #34a853;
+            margin-top: 8px;
+            font-size: 14px;
+            text-align: center;
+            display: none;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #4285f4;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .warning-box strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #dc3545;
+        }
+        .warning-box ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .warning-box li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="create-admin-container">
+        <h1>Create Admin Account</h1>
+        
+        <div class="warning-box">
+            <strong>⚠️ Important: Admin Password Security</strong>
+            <p>Please read these important security notes before creating your admin account:</p>
+            <ul>
+                <li>This admin password <strong>cannot be reset</strong> if lost</li>
+                <li>Store your password in a secure password manager</li>
+                <li>Do not share this password with anyone</li>
+                <li>This account will have full system access</li>
+            </ul>
+            <p>Are you sure you want to proceed with admin account creation?</p>
+        </div>
+
+        <form id="createAdminForm">
+            <div class="form-group">
+                <label for="adminName">Admin Name</label>
+                <input type="text" id="adminName" required>
+            </div>
+            <div class="form-group">
+                <label for="adminPassword">Admin Password</label>
+                <input type="password" id="adminPassword" required>
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" required>
+            </div>
+            <button type="submit" class="button">Create Admin Account</button>
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+        </form>
+        <a href="dashboard.html" class="back-link">← Back to Dashboard</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const form = document.getElementById('createAdminForm');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+
+            // Check if admin already exists
+            const userData = await window.electronAPI.storeGet('userData');
+            if (userData && userData.isAdmin) {
+                window.location.href = 'admin.html';
+                return;
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const adminName = document.getElementById('adminName').value.trim();
+                const adminPassword = document.getElementById('adminPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                
+                if (!adminName) {
+                    errorMessage.textContent = 'Please enter an admin name';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+
+                if (adminPassword !== confirmPassword) {
+                    errorMessage.textContent = 'Passwords do not match';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+
+                if (adminPassword.length < 8) {
+                    errorMessage.textContent = 'Password must be at least 8 characters long';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    const updatedUserData = {
+                        ...userData,
+                        isAdmin: true,
+                        adminName: adminName,
+                        adminPassword: adminPassword
+                    };
+                    
+                    await window.electronAPI.storeSet('userData', updatedUserData);
+                    
+                    successMessage.textContent = 'Admin account created successfully!';
+                    successMessage.style.display = 'block';
+                    errorMessage.style.display = 'none';
+                    
+                    // Redirect to admin page after a short delay
+                    setTimeout(() => {
+                        window.location.href = 'admin.html';
+                    }, 1500);
+                } catch (error) {
+                    console.error('Error creating admin:', error);
+                    errorMessage.textContent = 'An error occurred while creating admin account';
+                    errorMessage.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
