@@ -1,16 +1,16 @@
 version: '3.8'
 
 services:
-  family-ai-assistant:
-    build: .
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: family-ai-assistant
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DISPLAY=${DISPLAY}
     volumes:
       - .:/usr/src/app
-      - /tmp/.X11-unix:/tmp/.X11-unix
-    network_mode: "host"
+      - /usr/src/app/node_modules
     restart: unless-stopped 
