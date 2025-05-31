@@ -163,7 +163,8 @@ ipcMain.handle('create-image', async (event, prompt, chatHistory, model) => {
         } else {
             selectedProvider = store.get('selectedProvider') || 'openai';
         }
-        if (!userData || !userData[`${selectedProvider}ApiKey`]) {
+        const apiKey = process.env[`${selectedProvider.toUpperCase()}_API_KEY`] || userData?.[`${selectedProvider}ApiKey`];
+        if (!userData || !apiKey) {
             throw new Error(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} API key not found. Please set your API key in preferences.`);
         }
         let imageUrl = null;
@@ -177,7 +178,7 @@ ipcMain.handle('create-image', async (event, prompt, chatHistory, model) => {
         if (model === 'dall-e-3' || (!model && selectedProvider === 'openai')) {
             // OpenAI DALL-E
             const OpenAI = require('openai');
-            const openai = new OpenAI({ apiKey: userData['openaiApiKey'] });
+            const openai = new OpenAI({ apiKey: apiKey });
             response = await openai.images.generate({
                 model: 'dall-e-3',
                 prompt: fullPrompt,
@@ -191,7 +192,7 @@ ipcMain.handle('create-image', async (event, prompt, chatHistory, model) => {
         } else if (model === 'imagen-3.0-generate-002') {
             // Google Imagen (real call)
             const { GoogleGenerativeAI } = require('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(userData['googleApiKey']);
+            const genAI = new GoogleGenerativeAI(apiKey);
             const imagenModel = genAI.getGenerativeModel({ model: 'imagen-3.0-generate-002' });
             // Call the model to generate an image
             const result = await imagenModel.generateContent({ prompt: fullPrompt });
@@ -229,7 +230,7 @@ ipcMain.handle('create-image', async (event, prompt, chatHistory, model) => {
 // Add provider-specific chat handlers
 async function handleOpenAIChat(message, model, temperature, chatHistory, userData) {
     const OpenAI = require('openai');
-    const openai = new OpenAI({ apiKey: userData.openaiApiKey });
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || userData.openaiApiKey });
     
     const formattedMessages = formatChatHistory(chatHistory, message);
     const response = await openai.chat.completions.create({
@@ -247,7 +248,7 @@ async function handleOpenAIChat(message, model, temperature, chatHistory, userDa
 
 async function handleGoogleChat(message, model, temperature, chatHistory, userData) {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(userData.googleApiKey);
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || userData.googleApiKey);
     const geminiModel = genAI.getGenerativeModel({ model: model });
     
     const formattedMessages = formatChatHistory(chatHistory, message);
@@ -313,7 +314,7 @@ ipcMain.handle('chat-message', async (event, message, model, temperature, chatHi
         const selectedProvider = store.get('selectedProvider') || 'openai';
         
         // Validate API key
-        const apiKey = userData?.[`${selectedProvider}ApiKey`];
+        const apiKey = process.env[`${selectedProvider.toUpperCase()}_API_KEY`] || userData?.[`${selectedProvider}ApiKey`];
         if (!userData || !apiKey) {
             throw new Error(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} API key not found. Please set your API key in preferences.`);
         }

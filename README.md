@@ -61,6 +61,34 @@ The built application will be available in the `dist` directory.
 - `src/`: Source code
 - `dist/`: Build output directory
 
+## Environment Variables and API Keys
+
+You can provide your OpenAI and Google API keys in two ways:
+
+1. **Via the App UI:**
+   - Go to Preferences/Settings in the app and enter your API keys.
+
+2. **Via Environment Variables (.env file):**
+   - Create a `.env` file in the project root with the following content:
+     ```
+     OPENAI_API_KEY=sk-...
+     GOOGLE_API_KEY=AIza...
+     ```
+   - These will be automatically picked up when running via Docker Compose or `npm start`.
+
+### Docker Compose Usage
+
+Docker Compose is configured to load environment variables from your `.env` file. To use this:
+
+1. Create a `.env` file as shown above.
+2. Run:
+   ```
+   docker-compose up --build
+   ```
+3. The app will use the API keys from the environment if set, otherwise it will fall back to keys set in the app UI.
+
+**Note:** Never commit your `.env` file or API keys to version control.
+
 ## License
 
 ISC 
