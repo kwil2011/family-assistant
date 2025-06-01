@@ -2,10 +2,20 @@ import { getProviders } from './models.js';
 
 // Helper to check if a model is a vision model
 function isVisionModel(modelId) {
-  return modelId === 'gpt-4o' || modelId === 'gpt-4-vision-preview';
+  // OpenAI Vision
+  if (modelId === 'gpt-4o' || modelId === 'gpt-4-vision-preview') return true;
+  // Google Gemini Vision (add all that support vision)
+  if (
+    modelId.startsWith('gemini-1.5-pro') ||
+    modelId.startsWith('gemini-1.5-flash') ||
+    modelId.startsWith('gemini-2.0-flash') ||
+    modelId.startsWith('gemini-2.5-pro') ||
+    modelId.startsWith('gemini-2.5-flash')
+  ) return true;
+  return false;
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function main() {
     console.log('DOM Content Loaded - Initializing chat interface');
     try {
         // Check if user is logged in
@@ -392,181 +402,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Handle image upload button
         if (document.getElementById('imageButton')) {
             document.getElementById('imageButton').addEventListener('click', () => {
-                const fileInput = document.getElementById('imageUpload');
-                if (fileInput) {
-                    fileInput.click();
-                }
-                quickActionsMenu.style.display = 'none';
-            });
-        }
-
-        // Handle document upload button
-        if (document.getElementById('fileButton')) {
-            document.getElementById('fileButton').addEventListener('click', () => {
-                const fileInput = document.getElementById('documentUpload');
-                if (fileInput) {
-                    fileInput.click();
-                }
-                quickActionsMenu.style.display = 'none';
-            });
-        }
-
-        // Close quick action modal
-        if (document.getElementById('closeQuickActionModal')) {
-            document.getElementById('closeQuickActionModal').addEventListener('click', () => {
-                const quickActionModal = document.getElementById('quickActionModal');
-                quickActionModal.style.display = 'none';
-            });
-        }
-
-        // Handle YouTube summarization
-        if (document.getElementById('summariseYoutubeBtn')) {
-            document.getElementById('summariseYoutubeBtn').addEventListener('click', async () => {
-                const youtubeUrlInput = document.getElementById('youtubeUrlInput');
-                const youtubeSummaryStatus = document.getElementById('youtubeSummaryStatus');
-                const youtubeSummaryResult = document.getElementById('youtubeSummaryResult');
-                const youtubeActionButtons = document.getElementById('youtubeActionButtons');
-                
-                const url = youtubeUrlInput.value.trim();
-                if (!url) {
-                    youtubeSummaryStatus.textContent = 'Please enter a valid YouTube URL';
+                if (!isVisionModel(selectedModel)) {
+                    window.addMessage('Image analysis is only available for vision models (GPT-4o, GPT-4 Vision, Gemini 1.5 Pro). Please select a supported model.', false, true);
                     return;
                 }
-
-                youtubeSummaryStatus.textContent = 'Processing video...';
-                youtubeSummaryResult.style.display = 'none';
-                youtubeActionButtons.style.display = 'none';
-
-                try {
-                    const response = await window.electronAPI.summariseYoutubeVideo(url, JSON.parse(localStorage.getItem('chatHistory') || '[]'));
-                    youtubeSummaryStatus.textContent = 'Video processed successfully!';
-                    const summaryElem = document.getElementById('summaryText');
-                    const transcriptElem = document.getElementById('transcriptText');
-                    if (summaryElem) summaryElem.textContent = response.summary;
-                    if (transcriptElem) transcriptElem.textContent = response.transcript;
-                    youtubeSummaryResult.style.display = 'block';
-                    youtubeActionButtons.style.display = 'flex';
-
-                    // Update session cost with YouTube processing costs using localStorage
-                    const youtubeCost = parseFloat(response.costs.total);
-                    if (!isNaN(youtubeCost)) {
-                        updateSessionCostDisplay(youtubeCost);
-                    }
-                } catch (error) {
-                    console.error('Error processing YouTube video:', error);
-                    youtubeSummaryStatus.textContent = 'Error processing video. Please try again.';
+                let fileInput = document.getElementById('imageUpload');
+                if (!fileInput) {
+                    fileInput = document.createElement('input');
+                    fileInput.type = 'file';
+                    fileInput.accept = 'image/*';
+                    fileInput.id = 'imageUpload';
+                    fileInput.style.display = 'none';
+                    document.body.appendChild(fileInput);
                 }
-            });
-        }
-
-        // Handle sending YouTube content to chat
-        if (document.getElementById('sendSummaryToChat')) {
-            document.getElementById('sendSummaryToChat').addEventListener('click', () => {
-                const summaryElem = document.getElementById('summaryText');
-                if (summaryElem) {
-                    const summaryText = summaryElem.textContent;
-                    window.addMessage(summaryText, true);
+                
+                // Remove the old file input and create a new one
+                if (fileInput.parentNode) {
+                    fileInput.parentNode.removeChild(fileInput);
                 }
-                document.getElementById('quickActionModal').style.display = 'none';
-            });
-        }
-
-        if (document.getElementById('sendTranscriptToChat')) {
-            document.getElementById('sendTranscriptToChat').addEventListener('click', () => {
-                const transcriptElem = document.getElementById('transcriptText');
-                if (transcriptElem) {
-                    const transcriptText = transcriptElem.textContent;
-                    window.addMessage(transcriptText, true);
-                }
-                document.getElementById('quickActionModal').style.display = 'none';
-            });
-        }
-
-        if (document.getElementById('sendBothToChat')) {
-            document.getElementById('sendBothToChat').addEventListener('click', () => {
-                const summaryElem = document.getElementById('summaryText');
-                const transcriptElem = document.getElementById('transcriptText');
-                const summaryText = summaryElem ? summaryElem.textContent : '';
-                const transcriptText = transcriptElem ? transcriptElem.textContent : '';
-                window.addMessage(`Summary:\n${summaryText}\n\nFull Transcript:\n${transcriptText}`, true);
-                document.getElementById('quickActionModal').style.display = 'none';
-            });
-        }
-
-        // Advanced image analysis modal state
-        let currentImageAnalysis = {
-            file: null,
-            history: []
-        };
-
-        // Handle image file selection and open image analysis modal
-        let fileInput = document.getElementById('imageUpload');
-        if (!fileInput) {
-            fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/*';
-            fileInput.id = 'imageUpload';
-            fileInput.style.display = 'none';
-            document.body.appendChild(fileInput);
-        }
-        if (fileInput) fileInput.addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    // Store image for modal use
-                    currentImageAnalysis.file = {
-                        name: file.name,
-                        data: (() => {
-                            const base64Data = e.target.result.split(',')[1];
-                            const byteCharacters = atob(base64Data);
-                            const byteNumbers = new Array(byteCharacters.length);
-                            for (let i = 0; i < byteCharacters.length; i++) {
-                                byteNumbers[i] = byteCharacters.charCodeAt(i);
-                            }
-                            return new Uint8Array(byteNumbers);
-                        })(),
-                        base64: e.target.result
-                    };
-                    currentImageAnalysis.history = [];
-                    // Show modal
-                    showImageAnalysisModal();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        if (document.getElementById('fileButton')) {
-            document.getElementById('fileButton').addEventListener('click', () => {
-                const fileInput = document.getElementById('documentUpload');
-                if (fileInput) {
-                    fileInput.click();
-                }
-            });
-            
-            // Trigger the hidden file input for document upload
-            let fileInput = document.getElementById('documentUpload');
-            if (!fileInput) {
                 fileInput = document.createElement('input');
                 fileInput.type = 'file';
-                fileInput.accept = '.pdf,.txt,.doc,.docx,.xls,.xlsx';
-                fileInput.id = 'documentUpload';
-                fileInput.multiple = true;
+                fileInput.accept = 'image/*';
+                fileInput.id = 'imageUpload';
                 fileInput.style.display = 'none';
                 document.body.appendChild(fileInput);
-            }
-            
-            fileInput.addEventListener('change', function(event) {
-                const files = Array.from(event.target.files);
-                if (files.length === 0) return;
                 
-                // Process each file
-                files.forEach(async (file, index) => {
-                    const reader = new FileReader();
-                    reader.onload = async function(e) {
-                        try {
-                            // Store file for analysis (FIX: use currentDocumentAnalysis)
-                            currentDocumentAnalysis.file = {
+                fileInput.addEventListener('change', function(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            currentImageAnalysis.file = {
                                 name: file.name,
                                 data: (() => {
                                     const base64Data = e.target.result.split(',')[1];
@@ -576,248 +442,426 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         byteNumbers[i] = byteCharacters.charCodeAt(i);
                                     }
                                     return new Uint8Array(byteNumbers);
-                                })()
+                                })(),
+                                base64: e.target.result
                             };
-                            currentDocumentAnalysis.history = [];
-                            
-                            // Show analysis modal
-                            showDocumentAnalysisModal();
-                        } catch (err) {
-                            console.error('Document processing error:', err);
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'message assistant error-message';
-                            errorDiv.textContent = `Error processing ${file.name}: ${err.message}`;
-                            chatContainer.appendChild(errorDiv);
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
-                        }
-                    };
-                    reader.readAsDataURL(file);
+                            currentImageAnalysis.history = [];
+                            showImageAnalysisModal();
+                        };
+                        reader.readAsDataURL(file);
+                    }
                 });
+                fileInput.click();
+                quickActionsMenu.style.display = 'none';
             });
         }
 
-        // Document analysis state
+        // Handle document upload button (now matches image upload behavior)
+        if (document.getElementById('fileButton')) {
+            document.getElementById('fileButton').addEventListener('click', () => {
+                let fileInput = document.getElementById('documentUploadInput');
+                if (!fileInput) {
+                    fileInput = document.createElement('input');
+                    fileInput.type = 'file';
+                    fileInput.accept = '.pdf,.txt,.doc,.docx,.xls,.xlsx';
+                    fileInput.id = 'documentUploadInput';
+                    fileInput.style.display = 'none';
+                    document.body.appendChild(fileInput);
+                }
+                // Remove the old file input and create a new one
+                if (fileInput.parentNode) {
+                    fileInput.parentNode.removeChild(fileInput);
+                }
+                fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.pdf,.txt,.doc,.docx,.xls,.xlsx';
+                fileInput.id = 'documentUploadInput';
+                fileInput.style.display = 'none';
+                document.body.appendChild(fileInput);
+                fileInput.addEventListener('change', function(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            currentDocumentAnalysis.file = file;
+                            currentDocumentAnalysis.data = new Uint8Array(e.target.result);
+                            currentDocumentAnalysis.history = [];
+                            showDocumentAnalysisModal();
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+                });
+                fileInput.click();
+                quickActionsMenu.style.display = 'none';
+            });
+        }
+
+        // Show document upload modal when 'Upload File' is clicked in quick actions
+        // (Removed: now handled by direct file picker)
+        // if (document.getElementById('fileButton')) {
+        //     document.getElementById('fileButton').addEventListener('click', () => {
+        //         const modal = document.getElementById('documentUploadModal');
+        //         if (modal) modal.style.display = 'flex';
+        //         // Reset status and input
+        //         document.getElementById('documentUploadStatus').textContent = '';
+        //         document.getElementById('documentUploadInput').value = '';
+        //     });
+        // }
+        // Hide document upload modal on close
+        // if (document.getElementById('closeDocumentUploadModal')) {
+        //     document.getElementById('closeDocumentUploadModal').addEventListener('click', () => {
+        //         document.getElementById('documentUploadModal').style.display = 'none';
+        //     });
+        // }
+        // Document Analysis State
         let currentDocumentAnalysis = {
             file: null,
-            history: []
+            data: null,
+            history: [],
+            isAnalyzing: false
         };
 
-        // Show document analysis modal
+        // Show Document Analysis Modal (matching image modal logic)
         function showDocumentAnalysisModal() {
             const modal = document.getElementById('documentAnalysisModal');
             const documentName = document.getElementById('documentName');
             const documentType = document.getElementById('documentType');
             const historyDiv = document.getElementById('documentAnalysisHistory');
-            
+            const toChatBtn = document.getElementById('documentAnalysisToChatBtn');
+            const clearBtn = document.getElementById('documentAnalysisClearBtn');
+
+            // Set file info
             if (currentDocumentAnalysis.file) {
                 documentName.textContent = currentDocumentAnalysis.file.name;
                 documentType.textContent = `Type: ${currentDocumentAnalysis.file.name.split('.').pop().toUpperCase()}`;
+            } else {
+                documentName.textContent = '';
+                documentType.textContent = '';
             }
-            
-            // Clear and rebuild history
+
+            // Render history
             historyDiv.innerHTML = '';
             currentDocumentAnalysis.history.forEach(item => {
-                const messageDiv = document.createElement('div');
-                messageDiv.style.marginBottom = '8px';
-                messageDiv.style.padding = '8px';
-                messageDiv.style.borderRadius = '4px';
-                messageDiv.style.backgroundColor = item.role === 'user' ? '#e3f2fd' : '#f5f5f5';
-                messageDiv.textContent = item.content;
-                historyDiv.appendChild(messageDiv);
+                const div = document.createElement('div');
+                div.style.marginBottom = '8px';
+                div.style.padding = '8px';
+                div.style.borderRadius = '4px';
+                div.style.backgroundColor = item.type === 'user' ? '#e3f2fd' : '#f5f5f5';
+                const label = document.createElement('div');
+                label.style.fontWeight = 'bold';
+                label.style.marginBottom = '4px';
+                label.textContent = item.type === 'user' ? 'You: ' + item.text : 'Assistant: ' + item.text;
+                div.appendChild(label);
+                historyDiv.appendChild(div);
             });
-            
+
+            // Enable/disable buttons
+            toChatBtn.disabled = currentDocumentAnalysis.history.length === 0;
+            clearBtn.disabled = currentDocumentAnalysis.history.length === 0;
+
+            // Show modal
             modal.style.display = 'flex';
+            document.getElementById('documentAnalysisInput').focus();
         }
 
-        // Close document analysis modal
+        // Hide Document Analysis Modal
         document.getElementById('closeDocumentAnalysisModal').addEventListener('click', () => {
             document.getElementById('documentAnalysisModal').style.display = 'none';
         });
 
-        // Handle document analysis input
+        // Document upload and analysis logic
+        const documentUploadInput = document.getElementById('documentUploadInput');
+        const documentUploadBtn = document.getElementById('documentUploadBtn');
+        const documentUploadStatus = document.getElementById('documentUploadStatus');
+
+        documentUploadBtn.addEventListener('click', () => {
+            if (!documentUploadInput.files || documentUploadInput.files.length === 0) {
+                documentUploadStatus.textContent = 'Please select a document file.';
+                return;
+            }
+            const file = documentUploadInput.files[0];
+            documentUploadStatus.textContent = 'Reading file...';
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+                currentDocumentAnalysis.file = file;
+                currentDocumentAnalysis.data = new Uint8Array(arrayBuffer);
+                currentDocumentAnalysis.history = [];
+                documentUploadStatus.textContent = `Loaded: ${file.name}`;
+                document.getElementById('documentUploadModal').style.display = 'none';
+                showDocumentAnalysisModal();
+            };
+            reader.onerror = function() {
+                documentUploadStatus.textContent = 'Error reading file.';
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Handle document analysis question
         document.getElementById('documentAnalysisSendBtn').addEventListener('click', async () => {
             const input = document.getElementById('documentAnalysisInput');
             const question = input.value.trim();
-            if (!question || !currentDocumentAnalysis.file) return;
-            
+            if (!question || !currentDocumentAnalysis.file || !currentDocumentAnalysis.data) {
+                return;
+            }
             // Add user question to history
-            currentDocumentAnalysis.history.push({ role: 'user', content: question });
+            currentDocumentAnalysis.history.push({ type: 'user', text: question });
             showDocumentAnalysisModal();
             input.value = '';
-            
+            // Show loading
+            currentDocumentAnalysis.isAnalyzing = true;
+            const historyDiv = document.getElementById('documentAnalysisHistory');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message assistant';
+            loadingDiv.textContent = 'Analyzing document...';
+            historyDiv.appendChild(loadingDiv);
             try {
-                // Show loading message
-                const loadingDiv = document.createElement('div');
-                loadingDiv.className = 'message assistant';
-                loadingDiv.textContent = 'Analyzing document...';
-                document.getElementById('documentAnalysisHistory').appendChild(loadingDiv);
-                
-                // Process the document with the question
                 const result = await window.electronAPI.processDocument(
                     currentDocumentAnalysis.file.name,
-                    currentDocumentAnalysis.file.data,
+                    currentDocumentAnalysis.data,
                     question,
-                    JSON.parse(localStorage.getItem('chatHistory') || '[]')
+                    currentDocumentAnalysis.history
                 );
-                
-                // Remove loading message
                 loadingDiv.remove();
-                
-                // Add AI response to history
-                currentDocumentAnalysis.history.push({ role: 'assistant', content: result.analysis });
-                
-                // Update cost display
-                if (result.cost) {
-                    updateSessionCostDisplay(result.cost);
-                }
-                
-                // Enable Send to Chat button
-                const toChatBtn = document.getElementById('documentAnalysisToChatBtn');
-                toChatBtn.style.background = '#4caf50';
-                toChatBtn.style.cursor = 'pointer';
-                toChatBtn.disabled = false;
-                
-                // Update modal with new history
+                currentDocumentAnalysis.history.push({ type: 'assistant', text: result.analysis });
                 showDocumentAnalysisModal();
-            } catch (error) {
-                console.error('Document analysis error:', error);
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'message assistant error-message';
-                errorDiv.textContent = `Error analyzing document: ${error.message}`;
-                document.getElementById('documentAnalysisHistory').appendChild(errorDiv);
+            } catch (err) {
+                loadingDiv.remove();
+                currentDocumentAnalysis.history.push({ type: 'assistant', text: 'Error: ' + (err.message || err) });
+                showDocumentAnalysisModal();
+            } finally {
+                currentDocumentAnalysis.isAnalyzing = false;
             }
         });
 
-        // Handle sending document analysis to chat
+        // Send Document Analysis to Chat
         document.getElementById('documentAnalysisToChatBtn').addEventListener('click', () => {
-            if (!currentDocumentAnalysis.history || currentDocumentAnalysis.history.length === 0) return;
-
-            // Create a formatted message with the document name and analysis history
-            let formattedMessage = `Document Analysis for "${currentDocumentAnalysis.file.name}":\n\n`;
-            currentDocumentAnalysis.history.forEach((entry, index) => {
-                formattedMessage += `${entry.role === 'user' ? 'Q' : 'A'}: ${entry.content}\n\n`;
-            });
-
-            // Add the message to the chat
-            addMessage(formattedMessage, 'assistant');
-
-            // Close the document analysis modal
-            document.getElementById('documentAnalysisModal').style.display = 'none';
+            if (!currentDocumentAnalysis.history.length) return;
+            const lastResponse = currentDocumentAnalysis.history[currentDocumentAnalysis.history.length - 1];
+            if (lastResponse.type === 'assistant') {
+                window.addMessage(`[Document Analysis]\n${lastResponse.text}`, true);
+                document.getElementById('documentAnalysisModal').style.display = 'none';
+            }
         });
 
-        // Show image analysis modal
+        // Clear Document Analysis History
+        document.getElementById('documentAnalysisClearBtn').addEventListener('click', () => {
+            currentDocumentAnalysis.history = [];
+            showDocumentAnalysisModal();
+        });
+
+        // Image Analysis State
+        let currentImageAnalysis = {
+            file: null,
+            history: [],
+            isAnalyzing: false
+        };
+
+        // Show Image Analysis Modal
         function showImageAnalysisModal() {
             const modal = document.getElementById('imageAnalysisModal');
-            const previewDiv = document.getElementById('imageAnalysisPreview');
-            const historyDiv = document.getElementById('imageAnalysisHistory');
-            
-            if (currentImageAnalysis.file) {
-                // Create and display image preview
-                const img = document.createElement('img');
-                img.src = currentImageAnalysis.file.base64;
-                img.style.maxWidth = '100%';
-                img.style.maxHeight = '200px';
-                img.style.borderRadius = '8px';
-                previewDiv.innerHTML = '';
-                previewDiv.appendChild(img);
-            }
-            
-            // Clear and rebuild history
-            historyDiv.innerHTML = '';
-            currentImageAnalysis.history.forEach(item => {
-                const messageDiv = document.createElement('div');
-                messageDiv.style.marginBottom = '8px';
-                messageDiv.style.padding = '8px';
-                messageDiv.style.borderRadius = '4px';
-                messageDiv.style.backgroundColor = item.role === 'user' ? '#e3f2fd' : '#f5f5f5';
-                messageDiv.textContent = item.content;
-                historyDiv.appendChild(messageDiv);
-            });
-            
-            // Reset Send to Chat button
+            const preview = document.getElementById('previewImage');
+            const history = document.getElementById('imageAnalysisHistory');
+            const input = document.getElementById('imageAnalysisInput');
+            const sendBtn = document.getElementById('imageAnalysisSendBtn');
             const toChatBtn = document.getElementById('imageAnalysisToChatBtn');
-            toChatBtn.style.background = '#ccc';
-            toChatBtn.style.cursor = 'not-allowed';
-            toChatBtn.disabled = true;
-            
+            const clearBtn = document.getElementById('imageAnalysisClearBtn');
+            const loading = document.getElementById('imageAnalysisLoading');
+
+            // Display the image
+            if (currentImageAnalysis.file && currentImageAnalysis.file.base64) {
+                preview.src = currentImageAnalysis.file.base64;
+            }
+
+            // Clear and populate history
+            history.innerHTML = '';
+            currentImageAnalysis.history.forEach(item => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '8px';
+                div.style.padding = '8px';
+                div.style.borderRadius = '4px';
+                div.style.backgroundColor = item.type === 'user' ? '#e3f2fd' : '#f5f5f5';
+                
+                const question = document.createElement('div');
+                question.style.fontWeight = 'bold';
+                question.style.marginBottom = '4px';
+                question.textContent = item.type === 'user' ? 'You: ' + item.text : 'Assistant: ' + item.text;
+                
+                div.appendChild(question);
+                history.appendChild(div);
+            });
+
+            // Enable/disable buttons based on state
+            sendBtn.disabled = currentImageAnalysis.isAnalyzing;
+            toChatBtn.disabled = currentImageAnalysis.history.length === 0;
+            loading.style.display = currentImageAnalysis.isAnalyzing ? 'block' : 'none';
+
+            // Show modal
             modal.style.display = 'flex';
+            input.focus();
         }
 
-        // Close image analysis modal
-        document.getElementById('closeImageAnalysisModal').addEventListener('click', () => {
-            document.getElementById('imageAnalysisModal').style.display = 'none';
-        });
+        // Hide Image Analysis Modal
+        function hideImageAnalysisModal() {
+            const modal = document.getElementById('imageAnalysisModal');
+            modal.style.display = 'none';
+        }
 
-        // Handle image analysis input
-        document.getElementById('imageAnalysisSendBtn').addEventListener('click', async () => {
+        // Handle Image Analysis
+        async function handleImageAnalysis() {
+            if (!currentImageAnalysis.file || currentImageAnalysis.isAnalyzing) return;
+
             const input = document.getElementById('imageAnalysisInput');
-            const question = input.value.trim();
-            if (!question || !currentImageAnalysis.file) return;
-            
-            // Add user question to history
-            currentImageAnalysis.history.push({ role: 'user', content: question });
-            showImageAnalysisModal();
-            input.value = '';
-            
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            const sendBtn = document.getElementById('imageAnalysisSendBtn');
+            const loading = document.getElementById('imageAnalysisLoading');
+            const toChatBtn = document.getElementById('imageAnalysisToChatBtn');
+
             try {
-                // Show loading message
-                const loadingDiv = document.createElement('div');
-                loadingDiv.className = 'message assistant';
-                loadingDiv.textContent = 'Analyzing image...';
-                document.getElementById('imageAnalysisHistory').appendChild(loadingDiv);
-                
-                // Process the image with the question
+                // Add user question to history
+                currentImageAnalysis.history.push({
+                    type: 'user',
+                    text: prompt
+                });
+
+                // Clear input and disable send button immediately
+                input.value = '';
+                sendBtn.disabled = true;
+
+                // Show updated history
+                showImageAnalysisModal();
+
+                // Update UI state
+                currentImageAnalysis.isAnalyzing = true;
+                loading.style.display = 'block';
+
+                // Send to main process
                 const result = await window.electronAPI.analyzeImage(
                     currentImageAnalysis.file.name,
                     currentImageAnalysis.file.data,
-                    question,
-                    JSON.parse(localStorage.getItem('chatHistory') || '[]')
+                    prompt,
+                    currentImageAnalysis.history
                 );
-                
-                // Remove loading message
-                loadingDiv.remove();
-                
-                // Add AI response to history
-                currentImageAnalysis.history.push({ role: 'assistant', content: result.analysis });
-                
-                // Update cost display
-                if (result.cost) {
-                    updateSessionCostDisplay(result.cost);
-                }
-                
-                // Enable Send to Chat button
-                const toChatBtn = document.getElementById('imageAnalysisToChatBtn');
-                toChatBtn.style.background = '#4caf50';
-                toChatBtn.style.cursor = 'pointer';
-                toChatBtn.disabled = false;
-                
-                // Update modal with new history
+
+                // Add response to history
+                currentImageAnalysis.history.push({
+                    type: 'assistant',
+                    text: result.analysis
+                });
+
+                // Update UI
                 showImageAnalysisModal();
             } catch (error) {
                 console.error('Image analysis error:', error);
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'message assistant error-message';
-                errorDiv.textContent = `Error analyzing image: ${error.message}`;
-                document.getElementById('imageAnalysisHistory').appendChild(errorDiv);
+                alert(error.message || 'An error occurred while analyzing the image.');
+            } finally {
+                // Reset UI state
+                currentImageAnalysis.isAnalyzing = false;
+                sendBtn.disabled = false;
+                loading.style.display = 'none';
+                toChatBtn.disabled = currentImageAnalysis.history.length === 0;
             }
-        });
+        }
 
-        // Handle sending image analysis to chat
-        document.getElementById('imageAnalysisToChatBtn').addEventListener('click', () => {
-            if (!currentImageAnalysis.history || currentImageAnalysis.history.length === 0) return;
+        // Send Image Analysis to Chat
+        function sendImageAnalysisToChat() {
+            if (!currentImageAnalysis.history.length) return;
 
-            // Create a formatted message with the image name and analysis history
-            let formattedMessage = `Image Analysis for "${currentImageAnalysis.file.name}":\n\n`;
-            currentImageAnalysis.history.forEach((entry, index) => {
-                formattedMessage += `${entry.role === 'user' ? 'Q' : 'A'}: ${entry.content}\n\n`;
+            const lastResponse = currentImageAnalysis.history[currentImageAnalysis.history.length - 1];
+            if (lastResponse.type === 'assistant') {
+                // Add image and analysis to chat
+                const chatInput = document.getElementById('messageInput');
+                const imagePreview = document.getElementById('previewImage');
+                
+                // Create message with image and analysis
+                const message = `[Image Analysis]\n${lastResponse.text}`;
+                chatInput.value = message;
+                
+                // Trigger send
+                document.getElementById('sendButton').click();
+                
+                // Close modal
+                hideImageAnalysisModal();
+            }
+        }
+
+        // Clear Image Analysis History
+        function clearImageAnalysisHistory() {
+            currentImageAnalysis.history = [];
+            showImageAnalysisModal();
+        }
+
+        // Image Analysis Event Listeners
+        const imageUploadInput = document.getElementById('imageUpload');
+        const imageAnalysisModal = document.getElementById('imageAnalysisModal');
+        const closeImageAnalysisModal = document.getElementById('closeImageAnalysisModal');
+        const imageAnalysisSendBtn = document.getElementById('imageAnalysisSendBtn');
+        const imageAnalysisToChatBtn = document.getElementById('imageAnalysisToChatBtn');
+        const imageAnalysisClearBtn = document.getElementById('imageAnalysisClearBtn');
+        const imageAnalysisInput = document.getElementById('imageAnalysisInput');
+
+        if (imageUploadInput) {
+            imageUploadInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Store image for modal use
+                        currentImageAnalysis.file = {
+                            name: file.name,
+                            data: (() => {
+                                const base64Data = e.target.result.split(',')[1];
+                                const byteCharacters = atob(base64Data);
+                                const byteNumbers = new Array(byteCharacters.length);
+                                for (let i = 0; i < byteCharacters.length; i++) {
+                                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                                }
+                                return new Uint8Array(byteNumbers);
+                            })(),
+                            base64: e.target.result
+                        };
+                        currentImageAnalysis.history = [];
+                        // Show modal
+                        showImageAnalysisModal();
+                    };
+                    reader.readAsDataURL(file);
+                }
             });
+        }
 
-            // Add the message to the chat
-            addMessage(formattedMessage, 'assistant');
+        if (closeImageAnalysisModal) {
+            closeImageAnalysisModal.addEventListener('click', hideImageAnalysisModal);
+        }
 
-            // Close the image analysis modal
-            document.getElementById('imageAnalysisModal').style.display = 'none';
-        });
+        if (imageAnalysisSendBtn) {
+            imageAnalysisSendBtn.addEventListener('click', handleImageAnalysis);
+        }
+
+        if (imageAnalysisToChatBtn) {
+            imageAnalysisToChatBtn.addEventListener('click', sendImageAnalysisToChat);
+        }
+
+        if (imageAnalysisClearBtn) {
+            imageAnalysisClearBtn.addEventListener('click', clearImageAnalysisHistory);
+        }
+
+        if (imageAnalysisInput) {
+            imageAnalysisInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !currentImageAnalysis.isAnalyzing) {
+                    handleImageAnalysis();
+                }
+            });
+        }
+
+        if (imageAnalysisModal) {
+            imageAnalysisModal.addEventListener('click', function(e) {
+                if (e.target === imageAnalysisModal) {
+                    hideImageAnalysisModal();
+                }
+            });
+        }
 
         // Handle top bar buttons
         if (document.getElementById('backButton')) {
@@ -936,7 +980,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Utility: Build prompt with web search results
         function buildWebSearchPrompt(userQuery, searchResults) {
-            let context = searchResults.map(
+            const organicResults = searchResults.organic_results || [];
+            let context = organicResults.map(
                 (r, i) => `Result ${i+1}:\nTitle: ${r.title}\nSnippet: ${r.snippet}`
             ).join('\n\n');
             return `You are an assistant with access to real-time web search.\n\nUser query: "${userQuery}"\n\nHere are the top web results:\n${context}\n\nUsing these, answer the user's question as helpfully as possible.`;
@@ -964,7 +1009,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 try {
                     const results = await window.electronAPI.webSearch(userQuery, JSON.parse(localStorage.getItem('chatHistory') || '[]'));
-                    if (!results || results.length === 0) {
+                    const organicResults = results.organic_results || [];
+                    if (!organicResults || organicResults.length === 0) {
                         throw new Error('No results found');
                     }
                     
@@ -1256,4 +1302,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error initializing chat interface:', error);
         showError('Sorry, there was an error initializing the chat interface. Please try again later.');
     }
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', main);
+} else {
+  main();
+}

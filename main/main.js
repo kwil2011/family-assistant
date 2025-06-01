@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { sendRecoveryCode, resetPassword } = require('./password-recovery');
+const Store = require('electron-store');
+const store = new Store();
 
 // Add IPC handlers for password recovery
 ipcMain.handle('sendRecoveryCode', async (event, email) => {
@@ -544,12 +546,6 @@ app.on('window-all-closed', () => {
 
 // Clear user data before quitting
 app.on('before-quit', () => {
-  try {
-    console.log('Before quit: Current userData:', store.get('userData'));
-    store.delete('userData');
-    store.delete('isLoggingOut');
-    console.log('After quit: UserData cleared, current value:', store.get('userData'));
-  } catch (error) {
-    console.error('Error clearing user data on quit:', error);
-  }
+  // Do not clear userData here!
+  // Only clear userData on explicit logout.
 }); 

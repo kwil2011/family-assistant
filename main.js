@@ -27,7 +27,7 @@ const exec = promisify(require('child_process').exec);
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const fetch = require('node-fetch');
-const SerpApi = require('google-search-results-nodejs');
+const { GoogleSearch } = require('google-search-results-nodejs');
 const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -382,7 +382,7 @@ ipcMain.handle('getAllProvidersAndModels', async () => {
         {
           id: 'gemini-1.5-flash-8b',
           name: 'Gemini 1.5 Flash-8B',
-          maxTokens: 500000,
+          maxTokens: 8000,
           temperature: 0.3,
           pricePerTokenUSD: 0.00005 / 1000,
           features: ['High Volume', 'Lower Intelligence Tasks'],
@@ -578,7 +578,7 @@ const MODEL_CONFIGS = {
         type: 'multimodal'
     },
     'gemini-1.5-flash-8b': {
-        maxTokens: 500000,
+        maxTokens: 8000,
         temperature: 0.3,
         pricePerTokenUSD: 0.00005 / 1000,
         provider: 'google',
@@ -662,7 +662,36 @@ async function handleGoogleChat(message, model, temperature, chatHistory, userDa
     
     // Get user settings and session prompt
     const settings = store.get(`personalSettings-${userData.email}`) || {};
-    const sessionSystemPrompt = store.get(`sessionSystemPrompt-${userData.email}`);
+    let sessionSystemPrompt = store.get(`sessionSystemPrompt-${userData.email}`);
+    if (!sessionSystemPrompt) {
+        sessionSystemPrompt = "You are a helpful family AI assistant. You help with tasks like homework, scheduling, and general knowledge questions. Keep responses concise and family-friendly.";
+        const memory = store.get(`memory-${userData.email}`);
+        if (settings.selectedPersona) {
+            const personas = store.get('personas') || [];
+            const selectedPersona = personas.find(p => p.id === settings.selectedPersona);
+            if (selectedPersona) {
+                sessionSystemPrompt = selectedPersona.prompt;
+            }
+        }
+        if (memory) sessionSystemPrompt += ` Here is what you know about this family: ${memory}`;
+        if (settings.familyMembers) sessionSystemPrompt += ` Family members: ${settings.familyMembers}.`;
+        if (settings.interests) sessionSystemPrompt += ` Family interests: ${settings.interests}.`;
+        if (settings.responseLength) {
+            switch (settings.responseLength) {
+                case 'concise': sessionSystemPrompt += ' Keep responses brief and to the point.'; break;
+                case 'detailed': sessionSystemPrompt += ' Provide detailed and comprehensive responses.'; break;
+                case 'balanced': default: sessionSystemPrompt += ' Provide balanced responses with appropriate detail.';
+            }
+        }
+        if (settings.contentFilter) {
+            switch (settings.contentFilter) {
+                case 'strict': sessionSystemPrompt += ' Ensure all content is strictly family-friendly and appropriate for all ages.'; break;
+                case 'moderate': sessionSystemPrompt += ' Keep content generally family-friendly while allowing for some mature topics when appropriate.'; break;
+                case 'minimal': sessionSystemPrompt += ' Use minimal content filtering while still maintaining basic appropriateness.'; break;
+            }
+        }
+        store.set(`sessionSystemPrompt-${userData.email}`, sessionSystemPrompt);
+    }
     
     // Format chat history for Gemini
     const formattedMessages = [];
@@ -1034,8 +1063,11 @@ ipcMain.handle('process-document', async (event, filename, fileData, prompt, cha
                 throw new Error('Unsupported file type. Only PDF, TXT, DOC, DOCX, XLS, and XLSX are supported.');
             }
 
+            // Log a preview of the extracted content for debugging
+            console.log('Extracted content preview:', content.slice(0, 200));
+
             if (!content || content.trim().length === 0) {
-                throw new Error('No content could be extracted from the document');
+                throw new Error('No content could be extracted from the document. Please check the file format and contents.');
             }
         } catch (parseError) {
             console.error('Error parsing document:', parseError);
@@ -1063,36 +1095,71 @@ ipcMain.handle('process-document', async (event, filename, fileData, prompt, cha
             throw new Error(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} API key not found. Please set your API key in settings.`);
         }
 
+        // Get document analysis settings
+        const settings = store.get(`personalSettings-${userData.email}`) || {};
+        const documentAnalysisModel = settings.documentAnalysisModel || 'gpt-4-turbo';
+        const maxTokens = settings.documentAnalysisMaxTokens || 16000;
+
         // Build context-aware prompt
         let fullPrompt = prompt || 'Please analyze this document and provide a summary of its contents.';
         if (chatHistory && Array.isArray(chatHistory) && chatHistory.length > 0) {
             const historyText = chatHistory.slice(-5).map(msg => `${msg.isUser ? 'User' : 'Assistant'}: ${msg.content}`).join('\n');
             fullPrompt = `Previous conversation:\n${historyText}\n\nUser request: ${prompt}`;
         }
+        let sessionSystemPrompt = store.get(`sessionSystemPrompt-${userData.email}`);
+        if (!sessionSystemPrompt) {
+            sessionSystemPrompt = "You are a helpful family AI assistant. You help with tasks like homework, scheduling, and general knowledge questions. Keep responses concise and family-friendly.";
+            const memory = store.get(`memory-${userData.email}`);
+            if (settings.selectedPersona) {
+                const personas = store.get('personas') || [];
+                const selectedPersona = personas.find(p => p.id === settings.selectedPersona);
+                if (selectedPersona) {
+                    sessionSystemPrompt = selectedPersona.prompt;
+                }
+            }
+            if (memory) sessionSystemPrompt += ` Here is what you know about this family: ${memory}`;
+            if (settings.familyMembers) sessionSystemPrompt += ` Family members: ${settings.familyMembers}.`;
+            if (settings.interests) sessionSystemPrompt += ` Family interests: ${settings.interests}.`;
+            if (settings.responseLength) {
+                switch (settings.responseLength) {
+                    case 'concise': sessionSystemPrompt += ' Keep responses brief and to the point.'; break;
+                    case 'detailed': sessionSystemPrompt += ' Provide detailed and comprehensive responses.'; break;
+                    case 'balanced': default: sessionSystemPrompt += ' Provide balanced responses with appropriate detail.';
+                }
+            }
+            if (settings.contentFilter) {
+                switch (settings.contentFilter) {
+                    case 'strict': sessionSystemPrompt += ' Ensure all content is strictly family-friendly and appropriate for all ages.'; break;
+                    case 'moderate': sessionSystemPrompt += ' Keep content generally family-friendly while allowing for some mature topics when appropriate.'; break;
+                    case 'minimal': sessionSystemPrompt += ' Use minimal content filtering while still maintaining basic appropriateness.'; break;
+                }
+            }
+            store.set(`sessionSystemPrompt-${userData.email}`, sessionSystemPrompt);
+        }
         const messages = [
-            { role: 'system', content: 'You are a helpful AI assistant that analyzes documents and answers questions about them.' },
+            { role: 'system', content: sessionSystemPrompt },
             { role: 'user', content: `Document content:\n${content}\n\n${fullPrompt}` }
         ];
 
-        // Call the appropriate API based on the selected provider
+        // Call the appropriate API based on the selected provider and model
         let response;
         let cost = 0;
 
         if (selectedProvider === 'openai') {
             const openai = new OpenAI({ apiKey });
             const completion = await openai.chat.completions.create({
-                model: 'gpt-4-turbo',
+                model: documentAnalysisModel,
                 messages,
                 temperature: 0.7,
-                max_tokens: 1000
+                max_tokens: Math.min(1000, maxTokens)
             });
             response = completion.choices[0].message.content;
             cost = calculateOpenAICost(completion.usage.prompt_tokens, completion.usage.completion_tokens);
         } else if (selectedProvider === 'anthropic') {
             const anthropic = new Anthropic({ apiKey });
             const completion = await anthropic.messages.create({
-                model: 'claude-3-sonnet-20240229',
-                max_tokens: 1000,
+                model: documentAnalysisModel,
+                max_tokens: Math.min(1000, maxTokens),
                 messages: [
                     { role: 'user', content: messages[1].content }
                 ]
@@ -1101,7 +1168,7 @@ ipcMain.handle('process-document', async (event, filename, fileData, prompt, cha
             cost = calculateAnthropicCost(completion.usage.input_tokens, completion.usage.output_tokens);
         } else if (selectedProvider === 'google') {
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-pro' });
+            const model = genAI.getGenerativeModel({ model: documentAnalysisModel });
             const result = await model.generateContent(messages[1].content);
             response = result.response.text();
             cost = calculateGoogleCost(result.usageMetadata.promptTokenCount, result.usageMetadata.candidatesTokenCount);
@@ -1220,10 +1287,11 @@ ipcMain.handle('summarise-youtube-video', async (event, youtubeUrl, chatHistory)
         const whisperCostAUD = whisperCostUSD * await getPriceInAUD(whisperCostUSD);
 
         // Build context-aware prompt for summary
-        let summaryPrompt = 'You are a helpful assistant that summarizes YouTube videos. Provide a concise but comprehensive summary of the video content.';
+        let sessionSystemPrompt = store.get(`sessionSystemPrompt-${userData.email}`) || 'You are a helpful assistant that summarizes YouTube videos. Provide a concise but comprehensive summary of the video content.';
+        let summaryPrompt = sessionSystemPrompt;
         if (chatHistory && Array.isArray(chatHistory) && chatHistory.length > 0) {
             const historyText = chatHistory.slice(-5).map(msg => `${msg.isUser ? 'User' : 'Assistant'}: ${msg.content}`).join('\n');
-            summaryPrompt = `Previous conversation:\n${historyText}\n\n${summaryPrompt}`;
+            summaryPrompt = `Previous conversation:\n${historyText}\n\n${sessionSystemPrompt}`;
         }
 
         // Generate summary using GPT
@@ -1288,14 +1356,21 @@ ipcMain.handle('analyze-image', async (event, fileName, fileData, prompt, chatHi
       throw new Error(`${selectedProvider.charAt(0).toUpperCase() + selectedProvider.slice(1)} API key not found. Please set your API key in preferences.`);
     }
 
+    // Validate image size (max 20MB)
+    const imageBuffer = Buffer.from(new Uint8Array(fileData));
+    if (imageBuffer.length > 20 * 1024 * 1024) {
+      throw new Error('Image size exceeds 20MB limit. Please use a smaller image.');
+    }
+
     // OpenAI Vision Models
     if (selectedProvider === 'openai') {
       const visionModels = ['gpt-4o', 'gpt-4-vision-preview'];
       if (!visionModels.includes(selectedModel)) {
         return { analysis: 'The selected model does not support image analysis. Please select GPT-4o or GPT-4 Vision.', cost: '0.000000', totalCost: '0.000000' };
       }
+
       const openai = new OpenAI({ apiKey: userData[`${selectedProvider}ApiKey`] });
-      const imageBuffer = Buffer.from(new Uint8Array(fileData));
+      
       // Debug log before sending to OpenAI
       console.log('DEBUG: About to send to OpenAI vision API:', {
         model: selectedModel,
@@ -1303,10 +1378,14 @@ ipcMain.handle('analyze-image', async (event, fileName, fileData, prompt, chatHi
         imageLength: imageBuffer.length,
         imagePreview: imageBuffer.toString('base64').slice(0, 30)
       });
+
+      let sessionSystemPrompt = store.get(`sessionSystemPrompt-${userData.email}`) || 'You are a helpful assistant that can analyze images and answer questions about them.';
+      sessionSystemPrompt += ' Always answer the user\'s specific question.';
+
       const completion = await openai.chat.completions.create({
         model: selectedModel,
         messages: [
-          { role: 'system', content: 'You are a helpful assistant that can analyze images and answer questions about them.' },
+          { role: 'system', content: sessionSystemPrompt },
           { role: 'user', content: [
               { type: 'text', text: prompt || 'What is this image about?' },
               { type: 'image_url', image_url: { url: `data:image/png;base64,${imageBuffer.toString('base64')}` } }
@@ -1316,90 +1395,76 @@ ipcMain.handle('analyze-image', async (event, fileName, fileData, prompt, chatHi
         max_tokens: 600,
         temperature: 0.3
       });
+
       // Debug log after receiving response from OpenAI
       console.log('DEBUG: OpenAI completion response:', completion);
-      // Calculate cost
-      const totalTokens = completion.usage.total_tokens;
-      const pricePerToken = (0.005 / 1000) * await getPriceInAUD(0.005); // $0.005 USD per 1K tokens for gpt-4o
-      const cost = totalTokens * pricePerToken;
-      const currentCost = store.get(`totalCost-${userData.email}`) || 0;
-      store.set(`totalCost-${userData.email}`, currentCost + cost);
+
       return {
         analysis: completion.choices[0].message.content,
-        cost: cost.toFixed(6),
-        totalCost: (currentCost + cost).toFixed(6)
+        cost: completion.usage.total_tokens * 0.00001, // Approximate cost calculation
+        totalCost: (completion.usage.total_tokens * 0.00001).toFixed(6)
       };
     }
-    // Anthropic Vision Models (Claude 3)
-    else if (selectedProvider === 'anthropic') {
-      const visionModels = ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'];
-      if (!visionModels.includes(selectedModel)) {
-        return { analysis: 'The selected Anthropic model does not support image analysis. Please select Claude 3 Opus, Sonnet, or Haiku.', cost: '0.000000', totalCost: '0.000000' };
-      }
-      // Placeholder: Implement Anthropic Claude 3 vision API call here
-      // Example: Use anthropic SDK or HTTP call to Claude 3 with image and prompt
-      return { analysis: 'Anthropic vision support is not yet implemented. Please use OpenAI or check back soon.', cost: '0.000000', totalCost: '0.000000' };
-    }
-    // Google Gemini Vision Models
+    // Google Gemini Models
     else if (selectedProvider === 'google') {
-      const visionModels = ['models/gemini-1.5-pro', 'models/gemini-1.5-flash'];
-      if (!visionModels.includes(selectedModel)) {
-        return { analysis: 'The selected Google model does not support image analysis. Please select Gemini 1.5 Pro or Gemini 1.5 Flash.', cost: '0.000000', totalCost: '0.000000' };
+      // Allow all Gemini models that support vision
+      const supportedGeminiVisionModels = [
+        'gemini-1.5-pro',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-pro-preview-05-06',
+        'gemini-2.5-flash-preview-05-20',
+        'gemini-2.0-flash-lite',
+        'gemini-1.5-flash-8b'
+      ];
+      if (!supportedGeminiVisionModels.some(m => selectedModel.startsWith(m))) {
+        return { analysis: 'The selected Gemini model does not support image analysis. Please select a supported Gemini vision model.', cost: '0.000000', totalCost: '0.000000' };
       }
-      try {
-        const genAI = new GoogleGenerativeAI(userData[`${selectedProvider}ApiKey`]);
-        const model = genAI.getGenerativeModel({ model: selectedModel });
-        // Convert image to base64
-        const imageBuffer = Buffer.from(new Uint8Array(fileData));
-        const imageBase64 = imageBuffer.toString('base64');
-        // Detect MIME type from fileName
-        let mimeType = 'image/png';
-        if (fileName) {
-          const ext = fileName.split('.').pop().toLowerCase();
-          if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
-          else if (ext === 'gif') mimeType = 'image/gif';
-          else if (ext === 'webp') mimeType = 'image/webp';
-          else if (ext === 'bmp') mimeType = 'image/bmp';
-          else if (ext === 'png') mimeType = 'image/png';
+
+      const genAI = new GoogleGenerativeAI(userData.googleApiKey);
+      // Use the selectedModel directly for Gemini
+      const model = genAI.getGenerativeModel({ model: selectedModel });
+
+      // Convert image to base64
+      const imageBase64 = imageBuffer.toString('base64');
+      const imageData = {
+        inlineData: {
+          data: imageBase64,
+          mimeType: 'image/png'
         }
-        // Prepare image part for Gemini
-        const imagePart = {
-          inlineData: {
-            data: imageBase64,
-            mimeType: mimeType,
-          },
-        };
-        // Prepare prompt
-        const geminiPrompt = [
-          { text: prompt || 'What is this image about?' },
-          imagePart,
-        ];
-        // Call Gemini Vision API
-        const result = await model.generateContent(geminiPrompt);
-        // Cost calculation (if available)
-        let cost = 0;
-        if (result.usageMetadata) {
-          cost = calculateGoogleCost(result.usageMetadata.promptTokenCount || 0, result.usageMetadata.candidatesTokenCount || 0);
-        }
-        const currentCost = store.get(`totalCost-${userData.email}`) || 0;
-        store.set(`totalCost-${userData.email}`, currentCost + cost);
-        return {
-          analysis: result.response.text(),
-          cost: cost.toFixed(6),
-          totalCost: (currentCost + cost).toFixed(6)
-        };
-      } catch (err) {
-        console.error('Google Gemini Vision API error:', err);
-        return { analysis: 'Sorry, there was an error analyzing the image with Gemini Vision.', cost: '0.000000', totalCost: '0.000000' };
-      }
+      };
+
+      // Debug log before sending to Gemini
+      console.log('DEBUG: About to send to Gemini API:', {
+        model: selectedModel,
+        prompt,
+        imageLength: imageBuffer.length
+      });
+
+      const result = await model.generateContent([
+        prompt || 'What is this image about?',
+        imageData
+      ]);
+      const response = await result.response;
+      const text = response.text();
+
+      // Debug log after receiving response from Gemini
+      console.log('DEBUG: Gemini completion response:', text);
+
+      return {
+        analysis: text,
+        cost: '0.000000', // Gemini pricing is different, implement actual cost calculation
+        totalCost: '0.000000'
+      };
     }
-    // Other providers (Cohere, Meta, Mistral, etc.)
     else {
-      return { analysis: 'Image analysis is only supported for OpenAI, Anthropic (Claude 3), and Google Gemini vision models at this time.', cost: '0.000000', totalCost: '0.000000' };
+      throw new Error('Unsupported provider for image analysis');
     }
-  } catch (err) {
-    console.error('Image analysis error:', err);
-    return { analysis: 'Sorry, there was an error analyzing the image.', cost: '0.000000', totalCost: '0.000000' };
+  } catch (error) {
+    console.error('Error in analyze-image:', error);
+    throw error;
   }
 });
 
@@ -1419,6 +1484,7 @@ ipcMain.handle('create-image', async (event, prompt, chatHistory) => {
       const historyText = chatHistory.slice(-5).map(msg => `${msg.isUser ? 'User' : 'Assistant'}: ${msg.content}`).join('\n');
       fullPrompt = `Previous conversation:\n${historyText}\n\nUser request: ${prompt}`;
     }
+    let sessionSystemPrompt = store.get(`sessionSystemPrompt-${userData.email}`) || 'You are a helpful assistant that can analyze images and answer questions about them.';
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt: fullPrompt,
@@ -1482,4 +1548,52 @@ ipcMain.handle('getGoogleGeminiModels', async () => {
 // Add handler for getting personas
 ipcMain.handle('get-personas', async () => {
   return store.get('personas') || [];
+});
+
+ipcMain.handle('update-persona', async (event, id, title, prompt, temperature) => {
+  let personas = store.get('personas') || [];
+  personas = personas.map(p => p.id === id ? { ...p, title, prompt, temperature } : p);
+  store.set('personas', personas);
+  return personas.find(p => p.id === id);
+});
+
+ipcMain.handle('web-search', async (event, query, chatHistory) => {
+  try {
+    const serpApiKey = process.env.SERPAPI_API_KEY;
+    if (!serpApiKey) {
+      throw new Error('SERPAPI_API_KEY is not configured');
+    }
+
+    const search = new GoogleSearch(serpApiKey);
+    const params = {
+      engine: "google",
+      q: query,
+      google_domain: "google.com.au",
+      gl: "au",
+      hl: "en"
+    };
+
+    const results = await new Promise((resolve, reject) => {
+      search.json(params, (data) => resolve(data));
+    });
+    
+    // Format the results
+    const formattedResults = {
+      organic_results: results.organic_results?.map(result => ({
+        title: result.title,
+        link: result.link,
+        snippet: result.snippet
+      })) || [],
+      knowledge_graph: results.knowledge_graph ? {
+        title: results.knowledge_graph.title,
+        description: results.knowledge_graph.description,
+        source: results.knowledge_graph.source?.link
+      } : null
+    };
+
+    return formattedResults;
+  } catch (error) {
+    console.error('Web search error:', error);
+    throw error;
+  }
 });

@@ -339,6 +339,53 @@
         .session-cost {
             font-weight: 500;
         }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #imageAnalysisModal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3100;
+        }
+        #imageAnalysisModal > div {
+            width: 100%;
+            max-width: 700px;
+            max-height: 90vh;
+            min-width: 320px;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        #imageAnalysisPreview {
+            text-align: center;
+            margin-bottom: 16px;
+            max-height: 40vh;
+            overflow: auto;
+        }
+        #previewImage {
+            max-width: 100%;
+            max-height: 40vh;
+            object-fit: contain;
+        }
+        #imageAnalysisHistory {
+            max-height: 20vh;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 8px;
+            background: #fafafa;
+        }
+        #imageAnalysisInput {
+            flex: 1;
+            min-width: 0;
+        }
+        #imageAnalysisSendBtn,
+        #imageAnalysisToChatBtn,
+        #imageAnalysisClearBtn {
+            min-width: 120px;
+        }
     </style>
 </head>
 <body>
@@ -712,32 +759,58 @@
 
     <!-- Image Analysis Modal -->
     <div id="imageAnalysisModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:3100; align-items:center; justify-content:center;">
-      <div style="background:white; border-radius:12px; max-width:480px; width:95%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+      <div style="background:white; border-radius:12px; max-width:800px; width:95%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
         <button id="closeImageAnalysisModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
         <h2 style="margin-top:0; font-size:1.3em;">Image Analysis</h2>
-        <div id="imageAnalysisPreview" style="text-align:center; margin-bottom:16px;"></div>
-        <div id="imageAnalysisHistory" style="max-height:180px; overflow-y:auto; margin-bottom:12px; border:1px solid #eee; border-radius:6px; padding:8px; background:#fafafa;"></div>
-        <input type="text" id="imageAnalysisInput" placeholder="Ask a question about this image..." style="width:100%; margin-bottom:8px; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
-        <div style="display:flex; gap:8px;">
-          <button id="imageAnalysisSendBtn" style="flex:1; background:#1976d2; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Send</button>
-          <button id="imageAnalysisToChatBtn" style="flex:1; background:#ccc; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:not-allowed;" disabled>Send to Chat</button>
+        <div id="imageAnalysisPreview" style="text-align:center; margin-bottom:16px; max-height:400px; overflow:auto;">
+          <img id="previewImage" style="max-width:100%; max-height:400px; object-fit:contain;" />
+        </div>
+        <div id="imageAnalysisHistory" style="max-height:200px; overflow-y:auto; margin-bottom:12px; border:1px solid #eee; border-radius:6px; padding:8px; background:#fafafa;"></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="imageAnalysisInput" placeholder="Ask a question about this image..." style="flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
+          <button id="imageAnalysisSendBtn" style="background:#1976d2; color:white; border:none; border-radius:4px; padding:10px 20px; font-size:16px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <span>Send</span>
+            <div id="imageAnalysisLoading" style="display:none; width:16px; height:16px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
+          </button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="imageAnalysisToChatBtn" style="flex:1; background:#4CAF50; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Send to Chat</button>
+          <button id="imageAnalysisClearBtn" style="flex:1; background:#f44336; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Clear History</button>
         </div>
       </div>
     </div>
 
-    <!-- Document Analysis Modal -->
+    <!-- Document Analysis Modal (matching image analysis modal style) -->
     <div id="documentAnalysisModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:3100; align-items:center; justify-content:center;">
-      <div style="background:white; border-radius:12px; max-width:480px; width:95%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+      <div style="background:white; border-radius:12px; max-width:600px; width:95%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative; display:flex; flex-direction:column; align-items:stretch;">
         <button id="closeDocumentAnalysisModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
         <h2 style="margin-top:0; font-size:1.3em;">Document Analysis</h2>
-        <div id="documentName" style="margin-bottom:8px; font-weight:bold;"></div>
-        <div id="documentType" style="margin-bottom:16px; color:#666;"></div>
-        <div id="documentAnalysisHistory" style="max-height:180px; overflow-y:auto; margin-bottom:12px; border:1px solid #eee; border-radius:6px; padding:8px; background:#fafafa;"></div>
-        <input type="text" id="documentAnalysisInput" placeholder="Ask a question about this document..." style="width:100%; margin-bottom:8px; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
-        <div style="display:flex; gap:8px;">
-          <button id="documentAnalysisSendBtn" style="flex:1; background:#1976d2; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Send</button>
-          <button id="documentAnalysisToChatBtn" style="flex:1; background:#ccc; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:not-allowed;" disabled>Send to Chat</button>
+        <div id="documentFileInfo" style="margin-bottom:12px;">
+          <span id="documentName" style="font-weight:bold;"></span><br>
+          <span id="documentType" style="color:#666;"></span>
         </div>
+        <div id="documentAnalysisHistory" style="max-height:200px; overflow-y:auto; margin-bottom:12px; border:1px solid #eee; border-radius:6px; padding:8px; background:#fafafa;"></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="text" id="documentAnalysisInput" placeholder="Ask a question about this document..." style="flex:1; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
+          <button id="documentAnalysisSendBtn" style="background:#1976d2; color:white; border:none; border-radius:4px; padding:10px 20px; font-size:16px; cursor:pointer; display:flex; align-items:center; gap:8px;">Send</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="documentAnalysisToChatBtn" style="flex:1; background:#4CAF50; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Send to Chat</button>
+          <button id="documentAnalysisClearBtn" style="flex:1; background:#f44336; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Clear History</button>
+        </div>
+      </div>
+    </div>
+
+    <input type="file" id="imageUpload" accept="image/*" style="display:none" />
+
+    <!-- Document Upload Modal (matching image modal style) -->
+    <div id="documentUploadModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:3200; align-items:center; justify-content:center;">
+      <div style="background:white; border-radius:12px; max-width:400px; width:95%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative; display:flex; flex-direction:column; align-items:stretch;">
+        <button id="closeDocumentUploadModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
+        <h2 style="margin-top:0; font-size:1.3em; margin-bottom:18px;">Upload Document</h2>
+        <input type="file" id="documentUploadInput" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx" style="margin-bottom:18px; font-size:16px; padding:8px; border-radius:5px; border:1px solid #ccc;" />
+        <button id="documentUploadBtn" style="background:#1976d2; color:white; border:none; border-radius:4px; padding:12px 0; font-size:16px; cursor:pointer; margin-bottom:10px;">Analyze Document</button>
+        <span id="documentUploadStatus" style="color:#888; font-size:14px; min-height:18px;"></span>
       </div>
     </div>
 

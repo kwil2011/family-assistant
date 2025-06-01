@@ -123,7 +123,7 @@
                 <h2>Family Settings</h2>
                 <div class="setting-item">
                     <label for="familyMembers">Family Members (comma-separated)</label>
-                    <input type="text" id="familyMembers" placeholder="e.g., Mom, Dad, Sarah, Tommy">
+                    <input type="text" id="familyMembers" placeholder="e.g., Mum, Dad, Sarah, Tommy">
                 </div>
                 <div class="setting-item">
                     <label for="interests">Family Interests and Activities</label>
@@ -144,10 +144,29 @@
             </div>
 
             <div class="setting-group">
+                <h2>Document Analysis</h2>
+                <div class="setting-item">
+                    <label for="documentAnalysisModel">Default Document Analysis Model</label>
+                    <select id="documentAnalysisModel">
+                        <option value="gpt-4-turbo">GPT-4 Turbo (OpenAI)</option>
+                        <option value="claude-3-sonnet">Claude 3 Sonnet (Anthropic)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google)</option>
+                        <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite (Google)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label for="documentAnalysisMaxTokens">Maximum Document Length (tokens)</label>
+                    <input type="number" id="documentAnalysisMaxTokens" min="1000" max="2000000" step="1000" value="16000">
+                    <small>Higher values allow for longer documents but may increase costs</small>
+                </div>
+            </div>
+
+            <div class="setting-group">
                 <h2>Family Memory</h2>
                 <div class="setting-item">
                     <label for="familyMemory">AI Family Memory (facts, preferences, etc.)</label>
-                    <textarea id="familyMemory" placeholder="e.g., Ken's favourite colour is black. Sarah loves hiking."></textarea>
+                    <textarea id="familyMemory" placeholder="e.g., Ken's favourite colour is black. Simon loves hiking."></textarea>
                 </div>
                 <button type="button" id="saveMemoryButton" class="save-button">Save Memory</button>
                 <button type="button" id="clearMemoryButton" class="save-button" style="background:#dc3545; margin-left:10px;">Clear Memory</button>
@@ -164,8 +183,10 @@
             const form = document.getElementById('settingsForm');
             const successMessage = document.getElementById('successMessage');
 
-            // Get current user data
+            // Debug logging
+            console.log("Loading personalization settings...");
             const userData = await window.electronAPI.storeGet('userData');
+            console.log("Loaded userData:", userData);
             if (!userData || !userData.email) {
                 window.location.replace('index.html');
                 return;
@@ -173,16 +194,11 @@
 
             // Create user-specific settings key
             const settingsKey = `personalSettings-${userData.email}`;
+            console.log("Using settingsKey:", settingsKey);
 
             // Load existing settings
             const settings = await window.electronAPI.storeGet(settingsKey);
-            if (settings) {
-                document.getElementById('selectedPersona').value = settings.selectedPersona || '';
-                document.getElementById('responseLength').value = settings.responseLength || 'balanced';
-                document.getElementById('familyMembers').value = settings.familyMembers || '';
-                document.getElementById('interests').value = settings.interests || '';
-                document.getElementById('contentFilter').value = settings.contentFilter || 'strict';
-            }
+            console.log("Loaded settings:", settings);
 
             // Load available personas
             const personas = await window.electronAPI.getPersonas();
@@ -193,6 +209,17 @@
                 option.textContent = persona.title;
                 personaSelect.appendChild(option);
             });
+
+            // Now set the values, after options are loaded
+            if (settings) {
+                document.getElementById('selectedPersona').value = settings.selectedPersona || '';
+                document.getElementById('responseLength').value = settings.responseLength || 'balanced';
+                document.getElementById('familyMembers').value = settings.familyMembers || '';
+                document.getElementById('interests').value = settings.interests || '';
+                document.getElementById('contentFilter').value = settings.contentFilter || 'strict';
+                document.getElementById('documentAnalysisModel').value = settings.documentAnalysisModel || 'gpt-4-turbo';
+                document.getElementById('documentAnalysisMaxTokens').value = settings.documentAnalysisMaxTokens || 16000;
+            }
 
             // Load and handle memory
             const memoryKey = `memory-${userData.email}`;
@@ -227,8 +254,10 @@
                     familyMembers: document.getElementById('familyMembers').value,
                     interests: document.getElementById('interests').value,
                     contentFilter: document.getElementById('contentFilter').value,
+                    documentAnalysisModel: document.getElementById('documentAnalysisModel').value,
+                    documentAnalysisMaxTokens: parseInt(document.getElementById('documentAnalysisMaxTokens').value)
                 };
-
+                console.log("Saving settings:", newSettings);
                 try {
                     await window.electronAPI.storeSet(settingsKey, newSettings);
                     successMessage.style.display = 'block';
@@ -247,4 +276,4 @@
         });
     </script>
 </body>
-</html> 
+</html>
