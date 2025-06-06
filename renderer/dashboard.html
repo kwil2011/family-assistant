@@ -238,19 +238,25 @@
             // Add logout functionality
             document.getElementById('logoutButton').addEventListener('click', async () => {
                 try {
+                    // Set isLoggingOut flag
+                    await window.electronAPI.storeSet('isLoggingOut', true);
+                    
+                    // Clear user data
+                    await window.electronAPI.storeSet('userData', {
+                        openaiApiKey: undefined,
+                        googleApiKey: undefined,
+                        selectedProvider: undefined,
+                        selectedModel: undefined,
+                        preferences: undefined
+                    });
+                    
+                    // Clear session data
                     const userData = await window.electronAPI.storeGet('userData');
-                    if (userData) {
-                        // Keep API keys and preferences, only remove auth data
-                        const preservedData = {
-                            openaiApiKey: userData.openaiApiKey,
-                            googleApiKey: userData.googleApiKey,
-                            selectedProvider: userData.selectedProvider,
-                            selectedModel: userData.selectedModel,
-                            preferences: userData.preferences
-                        };
-                        await window.electronAPI.storeSet('userData', preservedData);
+                    if (userData && userData.email) {
+                        await window.electronAPI.storeDelete(`sessionSystemPrompt-${userData.email}`);
                     }
-                    await window.electronAPI.storeDelete('isLoggingOut');
+                    
+                    // Redirect to login page
                     window.location.href = 'index.html';
                 } catch (error) {
                     console.error('Error during logout:', error);

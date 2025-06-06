@@ -143,35 +143,18 @@
             // Focus the email input by default
             emailInput.focus();
 
-            // Add clear data functionality
-            clearDataButton.addEventListener('click', async () => {
-                try {
-                    const userData = await window.electronAPI.storeGet('userData');
-                    if (userData) {
-                        // Keep API keys and preferences, only remove auth data
-                        const preservedData = {
-                            openaiApiKey: userData.openaiApiKey,
-                            googleApiKey: userData.googleApiKey,
-                            selectedProvider: userData.selectedProvider,
-                            selectedModel: userData.selectedModel,
-                            preferences: userData.preferences
-                        };
-                        await window.electronAPI.storeSet('userData', preservedData);
-                    }
-                    await window.electronAPI.storeDelete('isLoggingOut');
-                    window.location.reload();
-                } catch (error) {
-                    console.error('Error clearing data:', error);
-                    errorMessage.textContent = 'Error clearing data';
-                    errorMessage.style.display = 'block';
-                }
-            });
-
             // Check if user is already logged in
             const checkLoginStatus = async () => {
                 console.log('Checking login status...');
+                const isLoggingOut = await window.electronAPI.storeGet('isLoggingOut');
                 const userData = await window.electronAPI.storeGet('userData');
                 console.log('Login check - userData:', userData);
+                
+                // If we're logging out, clear the flag and stay on login page
+                if (isLoggingOut) {
+                    await window.electronAPI.storeDelete('isLoggingOut');
+                    return;
+                }
                 
                 // Check for authentication data
                 if (!userData || !userData.email || !userData.password) {
@@ -179,7 +162,7 @@
                     return;
                 }
                 
-                // Only redirect if we're on the login page
+                // Only redirect if we're on the login page and not logging out
                 if (window.location.href.includes('index.html')) {
                     console.log('Valid authentication data found, redirecting to dashboard');
                     window.location.replace('dashboard.html');
@@ -187,6 +170,33 @@
             };
             
             checkLoginStatus();
+
+            // Add clear data functionality
+            clearDataButton.addEventListener('click', async () => {
+                try {
+                    // Set isLoggingOut flag
+                    await window.electronAPI.storeSet('isLoggingOut', true);
+                    
+                    // Get current user data to clear associated data
+                    const userData = await window.electronAPI.storeGet('userData');
+                    
+                    // Clear session data if it exists
+                    if (userData && userData.email) {
+                        await window.electronAPI.storeDelete(`sessionSystemPrompt-${userData.email}`);
+                        await window.electronAPI.storeDelete(`personalSettings-${userData.email}`);
+                        await window.electronAPI.storeDelete(`memory-${userData.email}`);
+                    }
+                    
+                    // Switch back to default/global store
+                    await window.electronAPI.switchUserStore('');
+                    
+                    window.location.reload();
+                } catch (error) {
+                    console.error('Error clearing data:', error);
+                    errorMessage.textContent = 'Error clearing data';
+                    errorMessage.style.display = 'block';
+                }
+            });
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -196,16 +206,28 @@
                 
                 try {
                     const userData = await window.electronAPI.storeGet('userData');
+                    console.log('Login attempt - userData:', { ...userData, password: '********' }); // Log masked version
                     
                     // Check if userData exists and credentials match
-                    if (!userData) {
+                    if (!userData || !userData.email) {
                         throw new Error('No account found. Please register first.');
                     }
 
                     // Compare email and password
-                    if (userData.email !== email || userData.password !== password) {
-                        throw new Error('Invalid email or password');
+                    if (userData.email !== email) {
+                        throw new Error('Invalid email address');
                     }
+                    
+                    if (userData.password !== password) {
+                        throw new Error('Invalid password');
+                    }
+                    
+                    // Update last login time
+                    userData.lastLogin = new Date().toISOString();
+                    await window.electronAPI.storeSet('userData', userData);
+                    
+                    // Switch to user's store
+                    await window.electronAPI.switchUserStore(userData.email);
                     
                     window.location.replace('dashboard.html');
                 } catch (error) {

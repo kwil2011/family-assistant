@@ -106,4 +106,15 @@ input[type="range"] {
 }
 .delete-button:hover {
     color: #f44336;
+}
+
+/* Ensure modal overlay is always interactive and displayed correctly */
+#quickActionModal {
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+}
+#quickActionModal[style*="display: flex"] {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
 } 

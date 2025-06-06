@@ -82,7 +82,7 @@
         <h1>Create Account</h1>
         <form id="registerForm">
             <div class="form-group">
-                <label for="name">Preferred Name</label>
+                <label for="name">Full Name</label>
                 <input type="text" id="name" required>
             </div>
             <div class="form-group">
@@ -113,8 +113,8 @@
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
-                const name = document.getElementById('name').value;
-                const email = document.getElementById('email').value;
+                const name = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
                 const password = document.getElementById('password').value;
                 const confirmPassword = document.getElementById('confirmPassword').value;
                 
@@ -125,16 +125,27 @@
                 }
                 
                 try {
-                    // Store user data without API key
-                    await window.electronAPI.storeSet('userData', {
+                    // Store complete user data
+                    const userData = {
                         name,
                         email,
-                        password
-                    });
+                        password,
+                        openaiApiKey: undefined,
+                        googleApiKey: undefined,
+                        selectedProvider: undefined,
+                        selectedModel: undefined,
+                        preferences: undefined
+                    };
                     
+                    console.log('Storing user data:', { ...userData, password: '********' }); // Log masked version
+                    await window.electronAPI.storeSet('userData', userData);
+                    await window.electronAPI.switchUserStore(email);
+
+                    // If we got here, registration succeeded
                     window.location.href = 'dashboard.html';
                 } catch (error) {
-                    errorMessage.textContent = 'An error occurred during registration';
+                    console.error('Registration error:', error);
+                    errorMessage.textContent = error.message || 'An error occurred during registration';
                     errorMessage.style.display = 'block';
                 }
             });

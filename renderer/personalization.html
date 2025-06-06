@@ -90,6 +90,23 @@
             margin-top: 10px;
             display: none;
         }
+        .error-message {
+            color: #dc2626;
+            margin-top: 10px;
+            display: none;
+        }
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .loading::after {
+            content: "Saving...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #4285f4;
+        }
     </style>
 </head>
 <body>
@@ -175,105 +192,10 @@
 
             <button type="submit" class="save-button">Save Settings</button>
             <div id="successMessage" class="success-message">Settings saved successfully!</div>
+            <div id="errorMessage" class="error-message"></div>
         </form>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const form = document.getElementById('settingsForm');
-            const successMessage = document.getElementById('successMessage');
-
-            // Debug logging
-            console.log("Loading personalization settings...");
-            const userData = await window.electronAPI.storeGet('userData');
-            console.log("Loaded userData:", userData);
-            if (!userData || !userData.email) {
-                window.location.replace('index.html');
-                return;
-            }
-
-            // Create user-specific settings key
-            const settingsKey = `personalSettings-${userData.email}`;
-            console.log("Using settingsKey:", settingsKey);
-
-            // Load existing settings
-            const settings = await window.electronAPI.storeGet(settingsKey);
-            console.log("Loaded settings:", settings);
-
-            // Load available personas
-            const personas = await window.electronAPI.getPersonas();
-            const personaSelect = document.getElementById('selectedPersona');
-            personas.forEach(persona => {
-                const option = document.createElement('option');
-                option.value = persona.id;
-                option.textContent = persona.title;
-                personaSelect.appendChild(option);
-            });
-
-            // Now set the values, after options are loaded
-            if (settings) {
-                document.getElementById('selectedPersona').value = settings.selectedPersona || '';
-                document.getElementById('responseLength').value = settings.responseLength || 'balanced';
-                document.getElementById('familyMembers').value = settings.familyMembers || '';
-                document.getElementById('interests').value = settings.interests || '';
-                document.getElementById('contentFilter').value = settings.contentFilter || 'strict';
-                document.getElementById('documentAnalysisModel').value = settings.documentAnalysisModel || 'gpt-4-turbo';
-                document.getElementById('documentAnalysisMaxTokens').value = settings.documentAnalysisMaxTokens || 16000;
-            }
-
-            // Load and handle memory
-            const memoryKey = `memory-${userData.email}`;
-            const memoryTextarea = document.getElementById('familyMemory');
-            const saveMemoryButton = document.getElementById('saveMemoryButton');
-            const clearMemoryButton = document.getElementById('clearMemoryButton');
-            const memoryStatus = document.getElementById('memoryStatus');
-            const currentMemory = await window.electronAPI.storeGet(memoryKey);
-            memoryTextarea.value = currentMemory || '';
-
-            saveMemoryButton.addEventListener('click', async () => {
-                await window.electronAPI.storeSet(memoryKey, memoryTextarea.value.trim());
-                memoryStatus.textContent = 'Memory updated!';
-                memoryStatus.style.display = 'block';
-                setTimeout(() => { memoryStatus.style.display = 'none'; }, 2000);
-            });
-            clearMemoryButton.addEventListener('click', async () => {
-                await window.electronAPI.storeSet(memoryKey, '');
-                memoryTextarea.value = '';
-                memoryStatus.textContent = 'Memory cleared!';
-                memoryStatus.style.display = 'block';
-                setTimeout(() => { memoryStatus.style.display = 'none'; }, 2000);
-            });
-
-            // Handle form submission
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                const newSettings = {
-                    selectedPersona: document.getElementById('selectedPersona').value,
-                    responseLength: document.getElementById('responseLength').value,
-                    familyMembers: document.getElementById('familyMembers').value,
-                    interests: document.getElementById('interests').value,
-                    contentFilter: document.getElementById('contentFilter').value,
-                    documentAnalysisModel: document.getElementById('documentAnalysisModel').value,
-                    documentAnalysisMaxTokens: parseInt(document.getElementById('documentAnalysisMaxTokens').value)
-                };
-                console.log("Saving settings:", newSettings);
-                try {
-                    await window.electronAPI.storeSet(settingsKey, newSettings);
-                    successMessage.style.display = 'block';
-                    setTimeout(() => {
-                        successMessage.style.display = 'none';
-                    }, 3000);
-                } catch (error) {
-                    console.error('Error saving settings:', error);
-                }
-            });
-
-            // Handle back button
-            document.getElementById('backButton').addEventListener('click', () => {
-                window.location.href = 'dashboard.html';
-            });
-        });
-    </script>
+    <script src="personalization.js"></script>
 </body>
 </html>

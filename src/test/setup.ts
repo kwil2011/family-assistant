@@ -43,5 +43,6 @@ global.window = {
     getDailyCost: jest.fn(),
     onDailyCostWarning: jest.fn(),
     testEmailNotification: jest.fn(),
+    getPersonas: jest.fn(),
   },
 } as any; 

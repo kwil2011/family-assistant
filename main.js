@@ -1,27 +1,12 @@
-const fs = require('fs');
-const path = require('path');
-const dotenv = require('dotenv');
-try {
-  const envContents = fs.readFileSync('.env', 'utf8');
-  console.log('DEBUG: .env file contents:\n' + envContents);
-} catch (e) {
-  console.log('DEBUG: Could not read .env file:', e.message);
-}
-
-console.log('Main process started');
-require('dotenv').config();
-
-// Debug environment variables
-console.log('Environment variables:');
-console.log('SERPAPI_API_KEY exists:', !!process.env.SERPAPI_API_KEY);
-console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
-
 const { app, BrowserWindow, ipcMain, session } = require('electron');
 const Store = require('electron-store');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const dotenv = require('dotenv');
 const OpenAI = require('openai');
 const Typo = require('typo-js');
 const { execFile } = require('child_process');
-const os = require('os');
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 const pdfParse = require('pdf-parse');
@@ -32,13 +17,81 @@ const ExcelJS = require('exceljs');
 const { v4: uuidv4 } = require('uuid');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// Network share configuration
+const NETWORK_SHARE_PATH = process.env.NETWORK_SHARE_PATH || './shared-data';
+
+// Function to get user-specific store path
+const getUserStorePath = (userEmail) => {
+    if (!userEmail) {
+        return app.getPath('userData'); // Fallback to local storage
+    }
+    // Sanitize email for folder name
+    const sanitizedEmail = userEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    return path.join(NETWORK_SHARE_PATH, sanitizedEmail);
+};
+
 // Initialize store with configuration
-const store = new Store({
+let store = new Store({
     name: 'config',
     cwd: app.getPath('userData'),
     encryptionKey: process.env.STORE_ENCRYPTION_KEY || 'your-encryption-key',
     clearInvalidConfig: true
 });
+
+// Function to switch store location for a user
+const switchToUserStore = async (userEmail) => {
+    console.log('Switching to user store for:', userEmail);
+    const userStorePath = getUserStorePath(userEmail);
+    
+    // Create user directory if it doesn't exist
+    if (!fs.existsSync(userStorePath)) {
+        fs.mkdirSync(userStorePath, { recursive: true });
+    }
+    
+    // Create new store instance for user
+    const userStore = new Store({
+        name: 'config',
+        cwd: userStorePath,
+        encryptionKey: process.env.STORE_ENCRYPTION_KEY || 'your-encryption-key',
+        clearInvalidConfig: true
+    });
+    
+    // Get all data from the original store
+    const originalData = store.store;
+    
+    // Copy all data to the user store
+    for (const [key, value] of Object.entries(originalData)) {
+        // Skip copying userData to prevent overwriting
+        if (key === 'userData') continue;
+        userStore.set(key, value);
+    }
+    
+    // Get existing user data from the new store
+    const existingUserData = userStore.get('userData') || {};
+    
+    // Merge with current user data
+    const currentUserData = store.get('userData') || {};
+    const mergedUserData = {
+        ...existingUserData,
+        ...currentUserData,
+        // Preserve API keys if they exist in existing data
+        openaiApiKey: currentUserData.openaiApiKey || existingUserData.openaiApiKey,
+        googleApiKey: currentUserData.googleApiKey || existingUserData.googleApiKey,
+        // Preserve preferences if they exist in existing data
+        preferences: currentUserData.preferences || existingUserData.preferences,
+        // Preserve selected provider and model if they exist in existing data
+        selectedProvider: currentUserData.selectedProvider || existingUserData.selectedProvider,
+        selectedModel: currentUserData.selectedModel || existingUserData.selectedModel
+    };
+    
+    // Set the merged user data in the new store
+    userStore.set('userData', mergedUserData);
+    
+    // Update the global store reference
+    store = userStore;
+    
+    return true;
+};
 
 // For debugging: Log the store file location
 const storeFilePath = path.join(app.getPath('userData'), 'config.json');
@@ -58,6 +111,14 @@ if (!fs.existsSync(storeFilePath)) {
     // Copy the new empty store to the original store
     Object.assign(store, newStore);
 }
+
+console.log('Main process started');
+dotenv.config();
+
+// Debug environment variables
+console.log('Environment variables:');
+console.log('SERPAPI_API_KEY exists:', !!process.env.SERPAPI_API_KEY);
+console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
 
 // Initialize default personas if none exist
 function initializeDefaultPersonas() {
@@ -193,53 +254,72 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handlers
-ipcMain.handle('store-get', async (event, key) => {
-  console.log('store-get called with key:', key);
-  const value = store.get(key);
-  // Mask sensitive data in logs
-  const logValue = value ? {
-    ...value,
-    password: '********',
-    apiKey: value.apiKey ? '********' : undefined
-  } : value;
-  console.log('Getting from store:', key, logValue);
-  return value;
+ipcMain.handle('store-get', (event, key) => {
+    return store.get(key);
 });
 
 ipcMain.handle('store-set', async (event, key, value) => {
-  console.log('store-set handler called with:', key, value);
-  // Mask sensitive data in logs
-  const logValue = value ? {
-    ...value,
-    password: '********',
-    apiKey: value.apiKey ? '********' : undefined
-  } : value;
-  console.log('Setting in store:', key, logValue);
-  try {
-    store.set(key, value);
+    console.log('store-set handler called with:', key, value);
+    // Mask sensitive data in logs
+    const logValue = value ? {
+        ...value,
+        password: '********',
+        apiKey: value.apiKey ? '********' : undefined
+    } : value;
+    console.log('Setting in store:', key, logValue);
     
-    // Clear session system prompt if personalization settings are updated
-    if (key.startsWith('personalSettings-')) {
-      const userData = store.get('userData');
-      if (userData && userData.email) {
-        store.delete(`sessionSystemPrompt-${userData.email}`);
-      }
+    try {
+        // Special handling for userData to prevent data loss
+        if (key === 'userData') {
+            const existingData = store.get('userData') || {};
+            // Merge new data with existing data, preserving API keys and preferences
+            const mergedData = {
+                ...existingData,
+                ...value,
+                // Preserve API keys if they exist in existing data
+                openaiApiKey: value.openaiApiKey || existingData.openaiApiKey,
+                googleApiKey: value.googleApiKey || existingData.googleApiKey,
+                // Preserve preferences if they exist in existing data
+                preferences: value.preferences || existingData.preferences,
+                // Preserve selected provider and model if they exist in existing data
+                selectedProvider: value.selectedProvider || existingData.selectedProvider,
+                selectedModel: value.selectedModel || existingData.selectedModel
+            };
+            store.set(key, mergedData);
+            
+            // If this is a new user or the email has changed, switch to their store
+            if (value.email && (!existingData.email || existingData.email !== value.email)) {
+                await switchToUserStore(value.email);
+            }
+        } else {
+            store.set(key, value);
+        }
+        
+        // Clear session system prompt if personalization settings are updated
+        if (key.startsWith('personalSettings-')) {
+            const userData = store.get('userData');
+            if (userData && userData.email) {
+                store.delete(`sessionSystemPrompt-${userData.email}`);
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error saving to store:', error);
+        throw error;
     }
-    
-    return true;
-  } catch (error) {
-    console.error('Error saving to store:', error);
-    throw error;
-  }
 });
 
-ipcMain.handle('store-delete', async (event, key) => {
-  // console.log('Deleting from store:', key);
-  store.delete(key);
-  return true;
+ipcMain.handle('store-delete', (event, key) => {
+    return store.delete(key);
 });
 
-// Provider API Key Management
+// Handle store switching on login
+ipcMain.handle('switch-user-store', async (event, userEmail) => {
+    return switchToUserStore(userEmail);
+});
+
+// Get provider API key
 ipcMain.handle('getProviderApiKey', async (event, providerId) => {
   const userData = store.get('userData') || {};
   return userData[`${providerId}ApiKey`] || '';
@@ -1596,4 +1676,51 @@ ipcMain.handle('web-search', async (event, query, chatHistory) => {
     console.error('Web search error:', error);
     throw error;
   }
+});
+
+ipcMain.handle('getEnvironmentVariables', async () => {
+  return {
+    SERPAPI_API_KEY: process.env.SERPAPI_API_KEY || '',
+    STORE_ENCRYPTION_KEY: process.env.STORE_ENCRYPTION_KEY || ''
+  };
+});
+
+ipcMain.handle('updateEnvironmentVariables', async (event, envVars) => {
+  const envPath = path.join(__dirname, '.env');
+  let envContent = '';
+  // Read existing .env if it exists
+  if (fs.existsSync(envPath)) {
+    envContent = fs.readFileSync(envPath, 'utf-8');
+  }
+  // Parse existing .env into an object
+  const envObj = {};
+  envContent.split('\n').forEach(line => {
+    const [key, ...rest] = line.split('=');
+    if (key) envObj[key.trim()] = rest.join('=').trim();
+  });
+  // Update with new values
+  if (envVars.SERPAPI_API_KEY !== undefined) envObj.SERPAPI_API_KEY = envVars.SERPAPI_API_KEY;
+  if (envVars.STORE_ENCRYPTION_KEY !== undefined) envObj.STORE_ENCRYPTION_KEY = envVars.STORE_ENCRYPTION_KEY;
+  // Write back to .env
+  const newEnvContent = Object.entries(envObj)
+    .filter(([k, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n');
+  fs.writeFileSync(envPath, newEnvContent, 'utf-8');
+  // Reload environment variables
+  dotenv.config({ path: envPath });
+  return true;
+});
+
+ipcMain.handle('create-persona', async (event, title, prompt, temperature) => {
+  const personas = store.get('personas') || [];
+  const newPersona = {
+    id: uuidv4(),
+    title,
+    prompt,
+    temperature
+  };
+  personas.push(newPersona);
+  store.set('personas', personas);
+  return newPersona;
 });

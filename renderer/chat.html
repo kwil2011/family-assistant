@@ -468,14 +468,17 @@
     <div class="spellcheck-menu" id="spellcheckMenu"></div>
 
     <!-- Modal for quick actions (YouTube summariser, etc.) -->
-    <div id="quickActionModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:2000; align-items:center; justify-content:center;">
-        <div style="background:white; border-radius:8px; max-width:420px; width:92%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative;">
+    <div id="quickActionModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.3); z-index:9999; align-items:center; justify-content:center; pointer-events:auto;">
+        <div style="background:white; border-radius:8px; max-width:420px; width:92%; margin:auto; padding:32px 28px 24px 28px; box-shadow:0 2px 16px rgba(0,0,0,0.2); position:relative; pointer-events:auto;">
             <button id="closeQuickActionModal" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
             <h2 style="margin-top:0; font-size:1.3em;">Quick Actions</h2>
             <div id="quickActionContent">
                 <div id="youtubeSummariserPanel">
                     <label for="youtubeUrlInput" style="font-weight:500;">Summarise a YouTube Video</label>
-                    <input type="text" id="youtubeUrlInput" placeholder="Paste YouTube link here..." style="width:100%; margin-top:8px; margin-bottom:10px; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
+                    <div style="position:relative;">
+                        <input type="text" id="youtubeUrlInput" placeholder="Paste YouTube link here..." style="width:100%; margin-top:8px; margin-bottom:10px; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:15px;" />
+                        <button class="clear-input" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#666; cursor:pointer; display:none; font-size:18px; padding:4px 8px;">×</button>
+                    </div>
                     <button id="summariseYoutubeBtn" style="width:100%; background:#e53935; color:white; border:none; border-radius:4px; padding:10px 0; font-size:16px; cursor:pointer;">Summarise Video</button>
                     <div id="youtubeSummaryStatus" style="margin-top:12px; color:#666; font-size:14px;"></div>
                     <div id="youtubeSummaryResult" style="margin-top:18px; max-height:220px; overflow-y:auto; background:#f5f5f5; border-radius:6px; padding:14px; color:#222; font-size:15px; display:none;">

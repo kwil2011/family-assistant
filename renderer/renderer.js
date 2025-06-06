@@ -393,7 +393,11 @@ async function main() {
             document.getElementById('youtubeButton').addEventListener('click', () => {
                 const quickActionModal = document.getElementById('quickActionModal');
                 const youtubeSummariserPanel = document.getElementById('youtubeSummariserPanel');
+                const chatContainer = document.getElementById('chatContainer');
                 quickActionModal.style.display = 'flex';
+                quickActionModal.style.zIndex = '9999';
+                quickActionModal.style.pointerEvents = 'auto';
+                if (chatContainer) chatContainer.style.pointerEvents = 'none';
                 youtubeSummariserPanel.style.display = 'block';
                 quickActionsMenu.style.display = 'none';
             });
@@ -1297,6 +1301,89 @@ async function main() {
                 console.log('No AI messages found to speak');
                 showError('No message available to speak.');
             }
+        });
+
+        // Ensure event listeners for Quick Actions modal are attached
+        function setupQuickActionModalListeners() {
+            const closeBtn = document.getElementById('closeQuickActionModal');
+            const modal = document.getElementById('quickActionModal');
+            const summariseBtn = document.getElementById('summariseYoutubeBtn');
+            const statusDiv = document.getElementById('youtubeSummaryStatus');
+            const urlInput = document.getElementById('youtubeUrlInput');
+
+            if (!modal || !closeBtn || !summariseBtn || !statusDiv || !urlInput) {
+                console.error('Required elements not found for Quick Action Modal');
+                return;
+            }
+
+            // Enable pointer events on the modal
+            modal.style.pointerEvents = 'auto';
+
+            // Add paste event handler for the URL input
+            urlInput.addEventListener('paste', (e) => {
+                e.stopPropagation();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                if (pastedText) {
+                    urlInput.value = pastedText.trim();
+                }
+            });
+
+            // Add input event handler to enable/disable the clear button
+            urlInput.addEventListener('input', () => {
+                const clearBtn = urlInput.parentElement.querySelector('.clear-input');
+                if (clearBtn) {
+                    clearBtn.style.display = urlInput.value ? 'block' : 'none';
+                }
+            });
+
+            // Add click handler for the clear button
+            const clearBtn = urlInput.parentElement.querySelector('.clear-input');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    urlInput.value = '';
+                    clearBtn.style.display = 'none';
+                    urlInput.focus();
+                });
+            }
+
+            // Add click handler for the close button
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                modal.style.display = 'none';
+                statusDiv.textContent = '';
+                const chatContainer = document.getElementById('chatContainer');
+                if (chatContainer) chatContainer.style.pointerEvents = 'auto';
+            });
+
+            // Add click handler for the summarise button
+            summariseBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const url = urlInput.value.trim();
+                if (!url) {
+                    statusDiv.textContent = 'Please enter a YouTube URL.';
+                    return;
+                }
+                statusDiv.textContent = 'Summarising...';
+                try {
+                    const result = await window.electronAPI.summariseYoutubeVideo(url, []);
+                    statusDiv.textContent = 'Summary added to chat!';
+                    window.addMessage(`[YouTube Summary]\n${result.summary}`, true);
+                    modal.style.display = 'none';
+                    const chatContainer = document.getElementById('chatContainer');
+                    if (chatContainer) chatContainer.style.pointerEvents = 'auto';
+                } catch (err) {
+                    statusDiv.textContent = 'Error: ' + (err.message || err);
+                }
+            });
+        }
+
+        // Call setupQuickActionModalListeners when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', setupQuickActionModalListeners);
+
+        // Also call it when the modal is shown
+        document.getElementById('youtubeButton')?.addEventListener('click', () => {
+            setupQuickActionModalListeners();
         });
     } catch (error) {
         console.error('Error initializing chat interface:', error);
