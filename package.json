@@ -19,7 +19,8 @@
     "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:coverage": "jest --coverage",
     "test:ui": "playwright test --ui",
-    "test:debug": "playwright test --debug"
+    "test:debug": "playwright test --debug",
+    "start:server": "node main/server.js"
   },
   "keywords": [
     "openai",
@@ -54,6 +55,8 @@
     "dotenv": "^16.5.0",
     "electron-store": "^8.1.0",
     "exceljs": "^4.3.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "firebase": "^11.6.1",
     "google-search-results-nodejs": "^2.1.0",
     "mammoth": "^1.6.0",

@@ -1,0 +1,7 @@
+family-ai-assistant.backup.*
+node_modules
+.git
+dist
+*.exe
+*.zip
+*.jar 

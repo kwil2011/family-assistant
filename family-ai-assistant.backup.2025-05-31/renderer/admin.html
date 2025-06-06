@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Family AI Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0;
+            color: #333;
+        }
+        .back-button {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #333;
+        }
+        .back-button:hover {
+            background-color: #f5f5f5;
+        }
+        .admin-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .admin-section h2 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .admin-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        .admin-card h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        .admin-card p {
+            margin: 0 0 15px 0;
+            color: #666;
+        }
+        .admin-button {
+            padding: 8px 16px;
+            background-color: #4285f4;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-weight: 500;
+        }
+        .admin-button:hover {
+            background-color: #3367d6;
+        }
+        .admin-button.danger {
+            background-color: #ea4335;
+        }
+        .admin-button.danger:hover {
+            background-color: #d33426;
+        }
+        .password-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .password-modal {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+        }
+        .password-modal h2 {
+            margin: 0 0 20px 0;
+            color: #333;
+        }
+        .password-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .password-button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4285f4;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .password-button:hover {
+            background-color: #3367d6;
+        }
+        .error-message {
+            color: #ea4335;
+            margin-top: 10px;
+            display: none;
+        }
+        .admin-content {
+            display: none;
+        }
+        .forgot-password-link {
+            display: block;
+            text-align: right;
+            margin-top: 10px;
+            color: #666;
+            text-decoration: none;
+        }
+        .forgot-password-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div id="passwordOverlay" class="password-overlay">
+        <div class="password-modal">
+            <button id="closePasswordModal" style="position:absolute;top:18px;right:18px;background:none;border:none;font-size:22px;cursor:pointer;color:#888;z-index:2;" title="Close">&times;</button>
+            <h2>Admin Access</h2>
+            <input type="password" id="adminPassword" class="password-input" placeholder="Enter admin password">
+            <button id="submitPassword" class="password-button">Submit</button>
+            <div id="errorMessage" class="error-message">Incorrect password</div>
+            <a href="admin-password-recovery.html" class="forgot-password-link">Forgot Password?</a>
+        </div>
+    </div>
+
+    <div id="adminContent" class="admin-content">
+        <div class="header">
+            <h1>Admin Dashboard</h1>
+            <button class="back-button" id="backButton">← Back to Dashboard</button>
+        </div>
+
+        <div class="admin-section">
+            <h2>System Management</h2>
+            <div class="admin-grid">
+                <div class="admin-card">
+                    <h3>System Settings</h3>
+                    <p>Configure system-wide settings and preferences</p>
+                    <button class="admin-button" id="systemSettingsBtn">System Settings</button>
+                </div>
+                <div class="admin-card">
+                    <h3>Chat Personas</h3>
+                    <p>Manage and customize AI chat personalities</p>
+                    <button class="admin-button" id="chatPersonasBtn">Manage Personas</button>
+                </div>
+                <div class="admin-card">
+                    <h3>System Logs</h3>
+                    <p>Access and manage system logs</p>
+                    <button class="admin-button" id="systemLogsBtn">View Logs</button>
+                </div>
+                <div class="admin-card">
+                    <h3>AI Model Management</h3>
+                    <p>Add and manage custom AI models</p>
+                    <button class="admin-button" id="modelManagementBtn">Manage Models</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check if user is admin
+            const userData = await window.electronAPI.storeGet('userData');
+            if (!userData || !userData.isAdmin) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            const passwordOverlay = document.getElementById('passwordOverlay');
+            const adminContent = document.getElementById('adminContent');
+            const adminPassword = document.getElementById('adminPassword');
+            const submitPassword = document.getElementById('submitPassword');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Check for existing admin session
+            const adminSession = await window.electronAPI.storeGet('adminSession');
+            if (adminSession) {
+                passwordOverlay.style.display = 'none';
+                adminContent.style.display = 'block';
+            }
+
+            // Handle password submission
+            submitPassword.addEventListener('click', async () => {
+                const userData = await window.electronAPI.storeGet('userData');
+                if (adminPassword.value === userData.adminPassword) {
+                    // Set admin session
+                    await window.electronAPI.storeSet('adminSession', {
+                        timestamp: Date.now(),
+                        userId: userData.email
+                    });
+                    
+                    passwordOverlay.style.display = 'none';
+                    adminContent.style.display = 'block';
+                    errorMessage.style.display = 'none';
+                } else {
+                    errorMessage.style.display = 'block';
+                    adminPassword.value = '';
+                }
+            });
+
+            // Allow Enter key to submit password
+            adminPassword.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    submitPassword.click();
+                }
+            });
+
+            // Back button functionality
+            const backButton = document.getElementById('backButton');
+            if (backButton) {
+                backButton.addEventListener('click', async () => {
+                    console.log('Back button clicked');
+                    try {
+                        // Clear admin session when returning to dashboard
+                        await window.electronAPI.storeDelete('adminSession');
+                        window.location.href = 'dashboard.html';
+                    } catch (error) {
+                        console.error('Error navigating to dashboard:', error);
+                        // Fallback navigation method
+                        window.location.replace('dashboard.html');
+                    }
+                });
+            } else {
+                console.error('Back button element not found');
+            }
+
+            // Admin button event listeners
+            document.getElementById('systemSettingsBtn').addEventListener('click', () => {
+                window.location.href = 'system-settings.html';
+            });
+
+            document.getElementById('chatPersonasBtn').addEventListener('click', () => {
+                window.location.href = 'personas.html';
+            });
+
+            document.getElementById('systemLogsBtn').addEventListener('click', () => {
+                // TODO: Implement system logs functionality
+                console.log('System logs clicked');
+            });
+
+            document.getElementById('modelManagementBtn').addEventListener('click', () => {
+                window.location.href = 'model-management.html';
+            });
+
+            // Add close (X) button handler for password modal
+            document.getElementById('closePasswordModal').addEventListener('click', () => {
+                window.location.href = 'dashboard.html';
+            });
+        });
+    </script>
+</body>
+</html> 
