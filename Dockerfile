@@ -29,8 +29,9 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with legacy peer deps and electron-builder globally
+# Install dependencies with legacy peer deps, electron, and electron-builder globally
 RUN npm install --legacy-peer-deps && \
+    npm install electron@28.0.0 --save-dev && \
     npm install -g electron-builder
 
 # Copy app source
