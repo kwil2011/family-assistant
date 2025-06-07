@@ -12,7 +12,16 @@ RUN apt-get update && apt-get install -y \
     libxtst6 \
     xauth \
     xvfb \
+    python3 \
+    make \
+    g++ \
+    git \
     && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV DISPLAY=:99
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -27,14 +36,10 @@ RUN npm install
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN npm run build:win
 
 # Expose port for the application
 EXPOSE 3000
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-
-# Start the application
-CMD ["npm", "start"] 
+# Start Xvfb and the application
+CMD Xvfb :99 -screen 0 1024x768x16 & npm start 
