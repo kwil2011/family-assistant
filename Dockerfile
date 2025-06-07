@@ -31,8 +31,8 @@ COPY package*.json ./
 
 # Install dependencies with legacy peer deps, electron, and electron-builder globally
 RUN npm install --legacy-peer-deps && \
-    npm install electron@28.0.0 --save-dev && \
-    npm install -g electron-builder
+    npm install electron@28.0.0 --save-dev --legacy-peer-deps && \
+    npm install -g electron-builder --legacy-peer-deps
 
 # Copy app source
 COPY . .
